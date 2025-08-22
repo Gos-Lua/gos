@@ -86,7 +86,7 @@ function L9Yi:Tick()
     
     self:AutoAttackReset()
     
-    local Mode = _G.L9Engine:GetMode()
+    local Mode = _G.L9Engine:GetCurrentMode()
     
     if Mode == "Combo" then
         self:Combo()
@@ -104,9 +104,9 @@ end
 
 function L9Yi:AutoAttackReset()
     if _G.SDK and _G.SDK.Orbwalker:CanAttack() then
-        local target = _G.L9Engine:GetTarget(600)
-        if target and _G.L9Engine:IsValidTarget(target, 600) then
-            if self.Menu.Combo.UseQ:Value() and _G.L9Engine:Ready(_Q) then
+        local target = _G.L9Engine:GetBestTarget(600)
+        if target and _G.L9Engine:IsValidEnemy(target, 600) then
+            if self.Menu.Combo.UseQ:Value() and _G.L9Engine:IsSpellReady(_Q) then
                 Control.CastSpell(HK_Q, target)
             end
         end
@@ -114,27 +114,27 @@ function L9Yi:AutoAttackReset()
 end
 
 function L9Yi:Combo()
-    local target = _G.L9Engine:GetTarget(600)
+    local target = _G.L9Engine:GetBestTarget(600)
     if target == nil then return end
     
-    if _G.L9Engine:IsValidTarget(target) then
+    if _G.L9Engine:IsValidEnemy(target) then
         -- R Logic (Ultimate)
-        if myHero.pos:DistanceTo(target.pos) <= 600 and self.Menu.Combo.UseR:Value() and _G.L9Engine:Ready(_R) then
+        if myHero.pos:DistanceTo(target.pos) <= 600 and self.Menu.Combo.UseR:Value() and _G.L9Engine:IsSpellReady(_R) then
             Control.CastSpell(HK_R)
         end
         
         -- E Logic (Wuju Style)
-        if myHero.pos:DistanceTo(target.pos) <= 175 and self.Menu.Combo.UseE:Value() and _G.L9Engine:Ready(_E) then
+        if myHero.pos:DistanceTo(target.pos) <= 175 and self.Menu.Combo.UseE:Value() and _G.L9Engine:IsSpellReady(_E) then
             Control.CastSpell(HK_E)
         end
         
         -- Q Logic (Alpha Strike)
-        if myHero.pos:DistanceTo(target.pos) <= 600 and self.Menu.Combo.UseQ:Value() and _G.L9Engine:Ready(_Q) then
+        if myHero.pos:DistanceTo(target.pos) <= 600 and self.Menu.Combo.UseQ:Value() and _G.L9Engine:IsSpellReady(_Q) then
             Control.CastSpell(HK_Q, target)
         end
         
         -- W Logic (Meditate) - for sustain
-        if self.Menu.Combo.UseW:Value() and _G.L9Engine:Ready(_W) and myHero.health/myHero.maxHealth < 0.5 then
+        if self.Menu.Combo.UseW:Value() and _G.L9Engine:IsSpellReady(_W) and myHero.health/myHero.maxHealth < 0.5 then
             Control.CastSpell(HK_W)
         end
         
@@ -146,18 +146,18 @@ function L9Yi:Combo()
 end
 
 function L9Yi:Harass()
-    local target = _G.L9Engine:GetTarget(600)
+    local target = _G.L9Engine:GetBestTarget(600)
     if target == nil then return end
     
-    if _G.L9Engine:IsValidTarget(target) and myHero.mana/myHero.maxMana >= self.Menu.Harass.Mana:Value() / 100 then
+    if _G.L9Engine:IsValidEnemy(target) and myHero.mana/myHero.maxMana >= self.Menu.Harass.Mana:Value() / 100 then
         
         -- Q Logic (Alpha Strike)
-        if myHero.pos:DistanceTo(target.pos) <= 600 and self.Menu.Harass.UseQ:Value() and _G.L9Engine:Ready(_Q) then
+        if myHero.pos:DistanceTo(target.pos) <= 600 and self.Menu.Harass.UseQ:Value() and _G.L9Engine:IsSpellReady(_Q) then
             Control.CastSpell(HK_Q, target)
         end
         
         -- E Logic (Wuju Style)
-        if myHero.pos:DistanceTo(target.pos) <= 175 and self.Menu.Harass.UseE:Value() and _G.L9Engine:Ready(_E) then
+        if myHero.pos:DistanceTo(target.pos) <= 175 and self.Menu.Harass.UseE:Value() and _G.L9Engine:IsSpellReady(_E) then
             Control.CastSpell(HK_E)
         end
     end
@@ -167,16 +167,16 @@ function L9Yi:LaneClear()
     for i = 1, Game.MinionCount() do
         local minion = Game.Minion(i)
         
-        if myHero.pos:DistanceTo(minion.pos) <= 600 and minion.team == TEAM_ENEMY and _G.L9Engine:IsValidTarget(minion) and myHero.mana/myHero.maxMana >= self.Menu.Clear.Mana:Value() / 100 then
+        if myHero.pos:DistanceTo(minion.pos) <= 600 and minion.team == TEAM_ENEMY and _G.L9Engine:IsValidEnemy(minion) and myHero.mana/myHero.maxMana >= self.Menu.Clear.Mana:Value() / 100 then
             
             -- Q Logic (Alpha Strike)
-            if myHero.pos:DistanceTo(minion.pos) <= 600 and _G.L9Engine:Ready(_Q) and self.Menu.Clear.UseQ:Value() then
+            if myHero.pos:DistanceTo(minion.pos) <= 600 and _G.L9Engine:IsSpellReady(_Q) and self.Menu.Clear.UseQ:Value() then
                 Control.CastSpell(HK_Q, minion)
                 break
             end
             
             -- E Logic (Wuju Style)
-            if myHero.pos:DistanceTo(minion.pos) <= 175 and _G.L9Engine:Ready(_E) and self.Menu.Clear.UseE:Value() then
+            if myHero.pos:DistanceTo(minion.pos) <= 175 and _G.L9Engine:IsSpellReady(_E) and self.Menu.Clear.UseE:Value() then
                 Control.CastSpell(HK_E)
                 break
             end
@@ -188,16 +188,16 @@ function L9Yi:JungleClear()
     for i = 1, Game.MinionCount() do
         local minion = Game.Minion(i)
         
-        if myHero.pos:DistanceTo(minion.pos) <= 600 and minion.team == TEAM_JUNGLE and _G.L9Engine:IsValidTarget(minion) and myHero.mana/myHero.maxMana >= self.Menu.JClear.Mana:Value() / 100 then
+        if myHero.pos:DistanceTo(minion.pos) <= 600 and minion.team == TEAM_JUNGLE and _G.L9Engine:IsValidEnemy(minion) and myHero.mana/myHero.maxMana >= self.Menu.JClear.Mana:Value() / 100 then
             
             -- Q Logic (Alpha Strike)
-            if myHero.pos:DistanceTo(minion.pos) <= 600 and _G.L9Engine:Ready(_Q) and self.Menu.JClear.UseQ:Value() then
+            if myHero.pos:DistanceTo(minion.pos) <= 600 and _G.L9Engine:IsSpellReady(_Q) and self.Menu.JClear.UseQ:Value() then
                 Control.CastSpell(HK_Q, minion)
                 break
             end
             
             -- E Logic (Wuju Style)
-            if myHero.pos:DistanceTo(minion.pos) <= 175 and _G.L9Engine:Ready(_E) and self.Menu.JClear.UseE:Value() then
+            if myHero.pos:DistanceTo(minion.pos) <= 175 and _G.L9Engine:IsSpellReady(_E) and self.Menu.JClear.UseE:Value() then
                 Control.CastSpell(HK_E)
                 break
             end
@@ -209,10 +209,10 @@ function L9Yi:LastHit()
     for i = 1, Game.MinionCount() do
         local minion = Game.Minion(i)
         
-        if myHero.pos:DistanceTo(minion.pos) <= 600 and minion.team == TEAM_ENEMY and _G.L9Engine:IsValidTarget(minion) and myHero.mana/myHero.maxMana >= self.Menu.LastHit.Mana:Value() / 100 then
+        if myHero.pos:DistanceTo(minion.pos) <= 600 and minion.team == TEAM_ENEMY and _G.L9Engine:IsValidEnemy(minion) and myHero.mana/myHero.maxMana >= self.Menu.LastHit.Mana:Value() / 100 then
             
             -- Q Logic for LastHit
-            if myHero.pos:DistanceTo(minion.pos) <= 600 and _G.L9Engine:Ready(_Q) and self.Menu.LastHit.UseQ:Value() then
+            if myHero.pos:DistanceTo(minion.pos) <= 600 and _G.L9Engine:IsSpellReady(_Q) and self.Menu.LastHit.UseQ:Value() then
                 local QDmg = GetQDamage()
                 if minion.health <= QDmg then
                     Control.CastSpell(HK_Q, minion)
@@ -224,12 +224,12 @@ function L9Yi:LastHit()
 end
 
 function L9Yi:KillSteal()
-    local target = _G.L9Engine:GetTarget(600)
+    local target = _G.L9Engine:GetBestTarget(600)
     if target == nil then return end
     
-    if _G.L9Engine:IsValidTarget(target) then
+    if _G.L9Engine:IsValidEnemy(target) then
         -- Q KillSteal
-        if self.Menu.ks.UseQ:Value() and _G.L9Engine:Ready(_Q) and myHero.pos:DistanceTo(target.pos) <= 600 then
+        if self.Menu.ks.UseQ:Value() and _G.L9Engine:IsSpellReady(_Q) and myHero.pos:DistanceTo(target.pos) <= 600 then
             local QDmg = GetQDamage()
             if target.health <= QDmg then
                 Control.CastSpell(HK_Q, target)
@@ -237,7 +237,7 @@ function L9Yi:KillSteal()
         end
         
         -- E KillSteal
-        if self.Menu.ks.UseE:Value() and _G.L9Engine:Ready(_E) and myHero.pos:DistanceTo(target.pos) <= 175 then
+        if self.Menu.ks.UseE:Value() and _G.L9Engine:IsSpellReady(_E) and myHero.pos:DistanceTo(target.pos) <= 175 then
             local EDmg = getdmg("E", target, myHero) or 0
             if target.health <= EDmg then
                 Control.CastSpell(HK_E)
@@ -249,17 +249,18 @@ end
 function L9Yi:Draw()
     if myHero.dead then return end
     
-    if self.Menu.Drawing.DrawQ:Value() and _G.L9Engine:Ready(_Q) then
+    if self.Menu.Drawing.DrawQ:Value() and _G.L9Engine:IsSpellReady(_Q) then
         Draw.Circle(myHero.pos, 600, 1, Draw.Color(255, 255, 0, 0))
     end
     
-    if self.Menu.Drawing.DrawE:Value() and _G.L9Engine:Ready(_E) then
+    if self.Menu.Drawing.DrawE:Value() and _G.L9Engine:IsSpellReady(_E) then
         Draw.Circle(myHero.pos, 175, 1, Draw.Color(255, 0, 255, 0))
     end
     
-    if self.Menu.Drawing.DrawR:Value() and _G.L9Engine:Ready(_R) then
+    if self.Menu.Drawing.DrawR:Value() and _G.L9Engine:IsSpellReady(_R) then
         Draw.Circle(myHero.pos, 600, 1, Draw.Color(255, 0, 0, 255))
     end
 end
 
 L9Yi()
+

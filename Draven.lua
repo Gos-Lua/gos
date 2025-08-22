@@ -52,7 +52,7 @@ end
 function L9LeagueOfDraven:Tick()
     if myHero.dead or Game.IsChatOpen() then return end
     
-    local Mode = _G.L9Engine:GetMode()
+    local Mode = _G.L9Engine:GetCurrentMode()
     
     if Mode == "Combo" then
         self:Combo()
@@ -68,27 +68,27 @@ function L9LeagueOfDraven:Tick()
 end
 
 function L9LeagueOfDraven:Combo()
-    local target = _G.L9Engine:GetTarget(1000)
+    local target = _G.L9Engine:GetBestTarget(1000)
     if target == nil then return end
     
-    if _G.L9Engine:IsValidTarget(target) then
+    if _G.L9Engine:IsValidEnemy(target) then
         -- Q Logic (Spinning Axe)
-        if myHero.pos:DistanceTo(target.pos) <= 550 and self.Menu.Combo.UseQ:Value() and _G.L9Engine:Ready(_Q) then
+        if myHero.pos:DistanceTo(target.pos) <= 550 and self.Menu.Combo.UseQ:Value() and _G.L9Engine:IsSpellReady(_Q) then
             Control.CastSpell(HK_Q)
         end
         
         -- W Logic (Blood Rush)
-        if myHero.pos:DistanceTo(target.pos) <= 400 and self.Menu.Combo.UseW:Value() and _G.L9Engine:Ready(_W) then
+        if myHero.pos:DistanceTo(target.pos) <= 400 and self.Menu.Combo.UseW:Value() and _G.L9Engine:IsSpellReady(_W) then
             Control.CastSpell(HK_W)
         end
         
         -- E Logic (Stand Aside)
-        if myHero.pos:DistanceTo(target.pos) <= 1100 and self.Menu.Combo.UseE:Value() and _G.L9Engine:Ready(_E) then
+        if myHero.pos:DistanceTo(target.pos) <= 1100 and self.Menu.Combo.UseE:Value() and _G.L9Engine:IsSpellReady(_E) then
             Control.CastSpell(HK_E, target.pos)
         end
         
         -- R Logic (Whirling Death)
-        if myHero.pos:DistanceTo(target.pos) <= 20000 and self.Menu.Combo.UseR:Value() and _G.L9Engine:Ready(_R) then
+        if myHero.pos:DistanceTo(target.pos) <= 20000 and self.Menu.Combo.UseR:Value() and _G.L9Engine:IsSpellReady(_R) then
             Control.CastSpell(HK_R, target.pos)
         end
         
@@ -100,18 +100,18 @@ function L9LeagueOfDraven:Combo()
 end
 
 function L9LeagueOfDraven:Harass()
-    local target = _G.L9Engine:GetTarget(1000)
+    local target = _G.L9Engine:GetBestTarget(1000)
     if target == nil then return end
     
-    if _G.L9Engine:IsValidTarget(target) and myHero.mana/myHero.maxMana >= self.Menu.Harass.Mana:Value() / 100 then
+    if _G.L9Engine:IsValidEnemy(target) and myHero.mana/myHero.maxMana >= self.Menu.Harass.Mana:Value() / 100 then
         
         -- Q Logic (Spinning Axe)
-        if myHero.pos:DistanceTo(target.pos) <= 550 and self.Menu.Harass.UseQ:Value() and _G.L9Engine:Ready(_Q) then
+        if myHero.pos:DistanceTo(target.pos) <= 550 and self.Menu.Harass.UseQ:Value() and _G.L9Engine:IsSpellReady(_Q) then
             Control.CastSpell(HK_Q)
         end
         
         -- W Logic (Blood Rush)
-        if myHero.pos:DistanceTo(target.pos) <= 400 and self.Menu.Harass.UseW:Value() and _G.L9Engine:Ready(_W) then
+        if myHero.pos:DistanceTo(target.pos) <= 400 and self.Menu.Harass.UseW:Value() and _G.L9Engine:IsSpellReady(_W) then
             Control.CastSpell(HK_W)
         end
     end
@@ -121,16 +121,16 @@ function L9LeagueOfDraven:LaneClear()
     for i = 1, Game.MinionCount() do
         local minion = Game.Minion(i)
         
-        if myHero.pos:DistanceTo(minion.pos) <= 550 and minion.team == TEAM_ENEMY and _G.L9Engine:IsValidTarget(minion) and myHero.mana/myHero.maxMana >= self.Menu.Clear.Mana:Value() / 100 then
+        if myHero.pos:DistanceTo(minion.pos) <= 550 and minion.team == TEAM_ENEMY and _G.L9Engine:IsValidEnemy(minion) and myHero.mana/myHero.maxMana >= self.Menu.Clear.Mana:Value() / 100 then
             
             -- Q Logic (Spinning Axe)
-            if myHero.pos:DistanceTo(minion.pos) <= 550 and _G.L9Engine:Ready(_Q) and self.Menu.Clear.UseQ:Value() then
+            if myHero.pos:DistanceTo(minion.pos) <= 550 and _G.L9Engine:IsSpellReady(_Q) and self.Menu.Clear.UseQ:Value() then
                 Control.CastSpell(HK_Q)
                 break
             end
             
             -- W Logic (Blood Rush)
-            if myHero.pos:DistanceTo(minion.pos) <= 400 and _G.L9Engine:Ready(_W) and self.Menu.Clear.UseW:Value() then
+            if myHero.pos:DistanceTo(minion.pos) <= 400 and _G.L9Engine:IsSpellReady(_W) and self.Menu.Clear.UseW:Value() then
                 Control.CastSpell(HK_W)
                 break
             end
@@ -139,14 +139,14 @@ function L9LeagueOfDraven:LaneClear()
 end
 
 function L9LeagueOfDraven:AntiGapclose()
-    if not self.Menu.AntiGapclose.UseE:Value() or not _G.L9Engine:Ready(_E) then return end
+    if not self.Menu.AntiGapclose.UseE:Value() or not _G.L9Engine:IsSpellReady(_E) then return end
     
     local range = self.Menu.AntiGapclose.Range:Value()
     
     for i = 1, Game.HeroCount() do
         local hero = Game.Hero(i)
-        if hero.isEnemy and _G.L9Engine:IsValidTarget(hero, range) then
-            local distance = _G.L9Engine:GetDistance(myHero.pos, hero.pos)
+        if hero.isEnemy and _G.L9Engine:IsValidEnemy(hero, range) then
+            local distance = _G.L9Engine:CalculateDistance(myHero.pos, hero.pos)
             if distance <= range then
                 -- Cast E to push enemy away
                 Control.CastSpell(HK_E, hero.pos)
@@ -161,21 +161,22 @@ function L9LeagueOfDraven:Draw()
     
     local textPos = myHero.pos:To2D()
     
-    if self.Menu.Drawing.DrawQ:Value() and _G.L9Engine:Ready(_Q) then
+    if self.Menu.Drawing.DrawQ:Value() and _G.L9Engine:IsSpellReady(_Q) then
         Draw.Circle(myHero.pos, 550, 1, Draw.Color(255, 255, 0, 0))
     end
     
-    if self.Menu.Drawing.DrawW:Value() and _G.L9Engine:Ready(_W) then
+    if self.Menu.Drawing.DrawW:Value() and _G.L9Engine:IsSpellReady(_W) then
         Draw.Circle(myHero.pos, 400, 1, Draw.Color(255, 0, 255, 0))
     end
     
-    if self.Menu.Drawing.DrawE:Value() and _G.L9Engine:Ready(_E) then
+    if self.Menu.Drawing.DrawE:Value() and _G.L9Engine:IsSpellReady(_E) then
         Draw.Circle(myHero.pos, 1100, 1, Draw.Color(255, 0, 0, 255))
     end
     
-    if self.Menu.Drawing.DrawR:Value() and _G.L9Engine:Ready(_R) then
+    if self.Menu.Drawing.DrawR:Value() and _G.L9Engine:IsSpellReady(_R) then
         Draw.Circle(myHero.pos, 20000, 1, Draw.Color(255, 255, 255, 0))
     end
 end
 
 L9LeagueOfDraven()
+

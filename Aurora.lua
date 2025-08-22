@@ -146,7 +146,7 @@ function L9Aurora:Tick()
     
     if not CheckPredictionSystem() then return end
     
-    local Mode = _G.L9Engine:GetMode()
+    local Mode = _G.L9Engine:GetCurrentMode()
     
     if Mode == "Combo" then
         self:Combo()
@@ -164,12 +164,12 @@ function L9Aurora:Tick()
 end
 
 function L9Aurora:Combo()
-    local target = _G.L9Engine:GetTarget(1000)
+    local target = _G.L9Engine:GetBestTarget(1000)
     if target == nil then return end
     
-    if _G.L9Engine:IsValidTarget(target) then
+    if _G.L9Engine:IsValidEnemy(target) then
         -- R Logic (Ultimate)
-        if myHero.pos:DistanceTo(target.pos) <= 700 and self.Menu.Combo.UseR:Value() and _G.L9Engine:Ready(_R) then
+        if myHero.pos:DistanceTo(target.pos) <= 700 and self.Menu.Combo.UseR:Value() and _G.L9Engine:IsSpellReady(_R) then
             local prediction = GetPrediction(target, "R")
             if prediction and prediction[1] and prediction[2] and prediction[2] >= 2 then
                 Control.CastSpell(HK_R, Vector(prediction[1].x, myHero.pos.y, prediction[1].z))
@@ -179,7 +179,7 @@ function L9Aurora:Combo()
         end
         
         -- Q Logic
-        if myHero.pos:DistanceTo(target.pos) <= 900 and self.Menu.Combo.UseQ:Value() and _G.L9Engine:Ready(_Q) then
+        if myHero.pos:DistanceTo(target.pos) <= 900 and self.Menu.Combo.UseQ:Value() and _G.L9Engine:IsSpellReady(_Q) then
             local prediction = GetPrediction(target, "Q")
             if prediction and prediction[1] and prediction[2] and prediction[2] >= 2 then
                 Control.CastSpell(HK_Q, Vector(prediction[1].x, myHero.pos.y, prediction[1].z))
@@ -189,7 +189,7 @@ function L9Aurora:Combo()
         end
         
         -- E Logic
-        if myHero.pos:DistanceTo(target.pos) <= 825 and self.Menu.Combo.UseE:Value() and _G.L9Engine:Ready(_E) then
+        if myHero.pos:DistanceTo(target.pos) <= 825 and self.Menu.Combo.UseE:Value() and _G.L9Engine:IsSpellReady(_E) then
             local prediction = GetPrediction(target, "E")
             if prediction and prediction[1] and prediction[2] and prediction[2] >= 2 then
                 Control.CastSpell(HK_E, Vector(prediction[1].x, myHero.pos.y, prediction[1].z))
@@ -199,7 +199,7 @@ function L9Aurora:Combo()
         end
         
         -- W Logic (Shield)
-        if myHero.pos:DistanceTo(target.pos) <= 450 and self.Menu.Combo.UseW:Value() and _G.L9Engine:Ready(_W) then
+        if myHero.pos:DistanceTo(target.pos) <= 450 and self.Menu.Combo.UseW:Value() and _G.L9Engine:IsSpellReady(_W) then
             Control.CastSpell(HK_W, target)
         end
         
@@ -211,13 +211,13 @@ function L9Aurora:Combo()
 end
 
 function L9Aurora:Harass()
-    local target = _G.L9Engine:GetTarget(1000)
+    local target = _G.L9Engine:GetBestTarget(1000)
     if target == nil then return end
     
-    if _G.L9Engine:IsValidTarget(target) and myHero.mana/myHero.maxMana >= self.Menu.Harass.Mana:Value() / 100 then
+    if _G.L9Engine:IsValidEnemy(target) and myHero.mana/myHero.maxMana >= self.Menu.Harass.Mana:Value() / 100 then
         
         -- Q Logic
-        if myHero.pos:DistanceTo(target.pos) <= 900 and self.Menu.Harass.UseQ:Value() and _G.L9Engine:Ready(_Q) then
+        if myHero.pos:DistanceTo(target.pos) <= 900 and self.Menu.Harass.UseQ:Value() and _G.L9Engine:IsSpellReady(_Q) then
             local prediction = GetPrediction(target, "Q")
             if prediction and prediction[1] and prediction[2] and prediction[2] >= 2 then
                 Control.CastSpell(HK_Q, Vector(prediction[1].x, myHero.pos.y, prediction[1].z))
@@ -227,7 +227,7 @@ function L9Aurora:Harass()
         end
         
         -- E Logic
-        if myHero.pos:DistanceTo(target.pos) <= 825 and self.Menu.Harass.UseE:Value() and _G.L9Engine:Ready(_E) then
+        if myHero.pos:DistanceTo(target.pos) <= 825 and self.Menu.Harass.UseE:Value() and _G.L9Engine:IsSpellReady(_E) then
             local prediction = GetPrediction(target, "E")
             if prediction and prediction[1] and prediction[2] and prediction[2] >= 2 then
                 Control.CastSpell(HK_E, Vector(prediction[1].x, myHero.pos.y, prediction[1].z))
@@ -242,10 +242,10 @@ function L9Aurora:Clear()
     for i = 1, Game.MinionCount() do
         local minion = Game.Minion(i)
         
-        if myHero.pos:DistanceTo(minion.pos) <= 900 and minion.team == TEAM_ENEMY and _G.L9Engine:IsValidTarget(minion) and myHero.mana/myHero.maxMana >= self.Menu.Clear.Mana:Value() / 100 then
+        if myHero.pos:DistanceTo(minion.pos) <= 900 and minion.team == TEAM_ENEMY and _G.L9Engine:IsValidEnemy(minion) and myHero.mana/myHero.maxMana >= self.Menu.Clear.Mana:Value() / 100 then
             
             -- Q Logic
-            if myHero.pos:DistanceTo(minion.pos) <= 900 and _G.L9Engine:Ready(_Q) and self.Menu.Clear.UseQ:Value() then
+            if myHero.pos:DistanceTo(minion.pos) <= 900 and _G.L9Engine:IsSpellReady(_Q) and self.Menu.Clear.UseQ:Value() then
                 local prediction = GetPrediction(minion, "Q")
                 if prediction and prediction[1] and prediction[2] and prediction[2] >= 1 then
                     Control.CastSpell(HK_Q, Vector(prediction[1].x, myHero.pos.y, prediction[1].z))
@@ -254,7 +254,7 @@ function L9Aurora:Clear()
             end
             
             -- E Logic
-            if myHero.pos:DistanceTo(minion.pos) <= 825 and _G.L9Engine:Ready(_E) and self.Menu.Clear.UseE:Value() then
+            if myHero.pos:DistanceTo(minion.pos) <= 825 and _G.L9Engine:IsSpellReady(_E) and self.Menu.Clear.UseE:Value() then
                 local prediction = GetPrediction(minion, "E")
                 if prediction and prediction[1] and prediction[2] and prediction[2] >= 1 then
                     Control.CastSpell(HK_E, Vector(prediction[1].x, myHero.pos.y, prediction[1].z))
@@ -269,10 +269,10 @@ function L9Aurora:JungleClear()
     for i = 1, Game.MinionCount() do
         local minion = Game.Minion(i)
         
-        if myHero.pos:DistanceTo(minion.pos) <= 900 and minion.team == TEAM_JUNGLE and _G.L9Engine:IsValidTarget(minion) and myHero.mana/myHero.maxMana >= self.Menu.JClear.Mana:Value() / 100 then
+        if myHero.pos:DistanceTo(minion.pos) <= 900 and minion.team == TEAM_JUNGLE and _G.L9Engine:IsValidEnemy(minion) and myHero.mana/myHero.maxMana >= self.Menu.JClear.Mana:Value() / 100 then
             
             -- Q Logic
-            if myHero.pos:DistanceTo(minion.pos) <= 900 and _G.L9Engine:Ready(_Q) and self.Menu.JClear.UseQ:Value() then
+            if myHero.pos:DistanceTo(minion.pos) <= 900 and _G.L9Engine:IsSpellReady(_Q) and self.Menu.JClear.UseQ:Value() then
                 local prediction = GetPrediction(minion, "Q")
                 if prediction and prediction[1] and prediction[2] and prediction[2] >= 1 then
                     Control.CastSpell(HK_Q, Vector(prediction[1].x, myHero.pos.y, prediction[1].z))
@@ -281,7 +281,7 @@ function L9Aurora:JungleClear()
             end
             
             -- E Logic
-            if myHero.pos:DistanceTo(minion.pos) <= 825 and _G.L9Engine:Ready(_E) and self.Menu.JClear.UseE:Value() then
+            if myHero.pos:DistanceTo(minion.pos) <= 825 and _G.L9Engine:IsSpellReady(_E) and self.Menu.JClear.UseE:Value() then
                 local prediction = GetPrediction(minion, "E")
                 if prediction and prediction[1] and prediction[2] and prediction[2] >= 1 then
                     Control.CastSpell(HK_E, Vector(prediction[1].x, myHero.pos.y, prediction[1].z))
@@ -293,12 +293,12 @@ function L9Aurora:JungleClear()
 end
 
 function L9Aurora:KillSteal()
-    local target = _G.L9Engine:GetTarget(1000)
+    local target = _G.L9Engine:GetBestTarget(1000)
     if target == nil then return end
     
-    if _G.L9Engine:IsValidTarget(target) then
+    if _G.L9Engine:IsValidEnemy(target) then
         -- R KillSteal
-        if self.Menu.ks.UseR:Value() and _G.L9Engine:Ready(_R) and myHero.pos:DistanceTo(target.pos) <= 700 then
+        if self.Menu.ks.UseR:Value() and _G.L9Engine:IsSpellReady(_R) and myHero.pos:DistanceTo(target.pos) <= 700 then
             local RDmg = getdmg("R", target, myHero) or 0
             if target.health <= RDmg then
                 local prediction = GetPrediction(target, "R")
@@ -309,7 +309,7 @@ function L9Aurora:KillSteal()
         end
         
         -- Q KillSteal
-        if self.Menu.ks.UseQ:Value() and _G.L9Engine:Ready(_Q) and myHero.pos:DistanceTo(target.pos) <= 900 then
+        if self.Menu.ks.UseQ:Value() and _G.L9Engine:IsSpellReady(_Q) and myHero.pos:DistanceTo(target.pos) <= 900 then
             local QDmg = getdmg("Q", target, myHero) or 0
             if target.health <= QDmg then
                 local prediction = GetPrediction(target, "Q")
@@ -320,7 +320,7 @@ function L9Aurora:KillSteal()
         end
         
         -- E KillSteal
-        if self.Menu.ks.UseE:Value() and _G.L9Engine:Ready(_E) and myHero.pos:DistanceTo(target.pos) <= 825 then
+        if self.Menu.ks.UseE:Value() and _G.L9Engine:IsSpellReady(_E) and myHero.pos:DistanceTo(target.pos) <= 825 then
             local EDmg = getdmg("E", target, myHero) or 0
             if target.health <= EDmg then
                 local prediction = GetPrediction(target, "E")
@@ -333,10 +333,10 @@ function L9Aurora:KillSteal()
 end
 
 function L9Aurora:AutoW()
-    local target = _G.L9Engine:GetTarget(450)
+    local target = _G.L9Engine:GetBestTarget(450)
     if target == nil then return end
     
-    if _G.L9Engine:IsValidTarget(target) and myHero.pos:DistanceTo(target.pos) <= 450 and self.Menu.AutoW.UseW:Value() and _G.L9Engine:Ready(_W) then
+    if _G.L9Engine:IsValidEnemy(target) and myHero.pos:DistanceTo(target.pos) <= 450 and self.Menu.AutoW.UseW:Value() and _G.L9Engine:IsSpellReady(_W) then
         if myHero.health/myHero.maxHealth <= self.Menu.AutoW.hp:Value()/100 then
             Control.CastSpell(HK_W, target)
         end
@@ -350,26 +350,26 @@ function L9Aurora:Draw()
     
     local textPos = myHero.pos:To2D()
     
-    if self.Menu.Drawing.DrawQ:Value() and _G.L9Engine:Ready(_Q) then
+    if self.Menu.Drawing.DrawQ:Value() and _G.L9Engine:IsSpellReady(_Q) then
         Draw.Circle(myHero.pos, SPELL_RANGE.Q, 1, Draw.Color(255, 255, 0, 0))
     end
     
-    if self.Menu.Drawing.DrawW:Value() and _G.L9Engine:Ready(_W) then
+    if self.Menu.Drawing.DrawW:Value() and _G.L9Engine:IsSpellReady(_W) then
         Draw.Circle(myHero.pos, SPELL_RANGE.W, 1, Draw.Color(255, 0, 255, 0))
     end
     
-    if self.Menu.Drawing.DrawE:Value() and _G.L9Engine:Ready(_E) then
+    if self.Menu.Drawing.DrawE:Value() and _G.L9Engine:IsSpellReady(_E) then
         Draw.Circle(myHero.pos, SPELL_RANGE.E, 1, Draw.Color(255, 0, 0, 255))
     end
     
-    if self.Menu.Drawing.DrawR:Value() and _G.L9Engine:Ready(_R) then
+    if self.Menu.Drawing.DrawR:Value() and _G.L9Engine:IsSpellReady(_R) then
         Draw.Circle(myHero.pos, SPELL_RANGE.R, 1, Draw.Color(255, 255, 255, 0))
     end
     
     if self.Menu.Drawing.Kill:Value() then
         for i = 1, Game.HeroCount() do
             local hero = Game.Hero(i)
-            if hero.isEnemy and _G.L9Engine:IsValidTarget(hero) and myHero.pos:DistanceTo(hero.pos) <= 2000 then
+            if hero.isEnemy and _G.L9Engine:IsValidEnemy(hero) and myHero.pos:DistanceTo(hero.pos) <= 2000 then
                 local QDmg = getdmg("Q", hero, myHero) or 0
                 local EDmg = getdmg("E", hero, myHero) or 0
                 local RDmg = getdmg("R", hero, myHero) or 0
@@ -387,3 +387,4 @@ function L9Aurora:Draw()
 end
 
 L9Aurora()
+
