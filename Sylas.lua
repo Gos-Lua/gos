@@ -147,7 +147,7 @@ function L9Sylas:Tick()
     
     if not CheckPredictionSystem() then return end
     
-    local Mode = _G.L9Engine:GetMode()
+    local Mode = _G.L9Engine:GetCurrentMode()
     
     if Mode == "Combo" then
         self:Combo()
@@ -166,15 +166,15 @@ function L9Sylas:Tick()
 end
 
 function L9Sylas:Combo()
-    local target = _G.L9Engine:GetTarget(1300)
+    local target = _G.L9Engine:GetBestTarget(1300)
     if target == nil then return end
     
-    if _G.L9Engine:IsValidTarget(target) then
-        if myHero.pos:DistanceTo(target.pos) < 1300 and self.Menu.Combo.UseE:Value() and _G.L9Engine:Ready(_E) then
+    if _G.L9Engine:IsValidEnemy(target) then
+        if myHero.pos:DistanceTo(target.pos) < 1300 and self.Menu.Combo.UseE:Value() and _G.L9Engine:IsSpellReady(_E) then
             Control.CastSpell(HK_E, target.pos)
         end
         
-        if myHero.pos:DistanceTo(target.pos) <= 800 and _G.L9Engine:Ready(_E) then
+        if myHero.pos:DistanceTo(target.pos) <= 800 and _G.L9Engine:IsSpellReady(_E) then
             local prediction = GetPrediction(target, "E")
             if prediction and prediction[1] and prediction[2] and prediction[2] >= 1 then
                 Control.CastSpell(HK_E, Vector(prediction[1].x, myHero.pos.y, prediction[1].z))
@@ -183,7 +183,7 @@ function L9Sylas:Combo()
             end
         end
         
-        if myHero.pos:DistanceTo(target.pos) <= 775 and self.Menu.Combo.UseQ:Value() and _G.L9Engine:Ready(_Q) then
+        if myHero.pos:DistanceTo(target.pos) <= 775 and self.Menu.Combo.UseQ:Value() and _G.L9Engine:IsSpellReady(_Q) then
             local prediction = GetPrediction(target, "Q")
             if prediction and prediction[1] and prediction[2] and prediction[2] >= 2 then
                 Control.CastSpell(HK_Q, Vector(prediction[1].x, myHero.pos.y, prediction[1].z))
@@ -192,7 +192,7 @@ function L9Sylas:Combo()
             end
         end
         
-        if myHero.pos:DistanceTo(target.pos) <= 400 and self.Menu.Combo.UseW:Value() and _G.L9Engine:Ready(_W) then
+        if myHero.pos:DistanceTo(target.pos) <= 400 and self.Menu.Combo.UseW:Value() and _G.L9Engine:IsSpellReady(_W) then
             Control.CastSpell(HK_W, target)
         end
         
@@ -203,10 +203,10 @@ function L9Sylas:Combo()
 end
 
 function L9Sylas:Harass()
-    local target = _G.L9Engine:GetTarget(1300)
+    local target = _G.L9Engine:GetBestTarget(1300)
     if target == nil then return end
     
-    if _G.L9Engine:IsValidTarget(target) and myHero.mana/myHero.maxMana >= self.Menu.Harass.Mana:Value() / 100 then
+    if _G.L9Engine:IsValidEnemy(target) and myHero.mana/myHero.maxMana >= self.Menu.Harass.Mana:Value() / 100 then
         
         if myHero.pos:DistanceTo(target.pos) <= 800 and myHero:GetSpellData(_E).name == "SylasE2" then
             local prediction = GetPrediction(target, "E")
@@ -215,23 +215,23 @@ function L9Sylas:Harass()
             end
         end
         
-        if myHero.pos:DistanceTo(target.pos) < 1300 and self.Menu.Harass.UseE:Value() and _G.L9Engine:Ready(_E) then
+        if myHero.pos:DistanceTo(target.pos) < 1300 and self.Menu.Harass.UseE:Value() and _G.L9Engine:IsSpellReady(_E) then
             if myHero:GetSpellData(_E).name == "SylasE" then
                 Control.CastSpell(HK_E, target.pos)
             end
         end
         
-        local passiveBuff = _G.L9Engine:GetBuffData(myHero, "SylasPassiveAttack")
-        if passiveBuff.count == 1 and myHero.pos:DistanceTo(target.pos) < 400 then return end
+        local passiveBuff = _G.L9Engine:GetUnitBuff(myHero, "SylasPassiveAttack")
+        if passiveBuff and passiveBuff.count == 1 and myHero.pos:DistanceTo(target.pos) < 400 then return end
         
-        if myHero.pos:DistanceTo(target.pos) <= 775 and self.Menu.Harass.UseQ:Value() and _G.L9Engine:Ready(_Q) then
+        if myHero.pos:DistanceTo(target.pos) <= 775 and self.Menu.Harass.UseQ:Value() and _G.L9Engine:IsSpellReady(_Q) then
             local prediction = GetPrediction(target, "Q")
             if prediction and prediction[1] and prediction[2] and prediction[2] >= 2 then
                 Control.CastSpell(HK_Q, Vector(prediction[1].x, myHero.pos.y, prediction[1].z))
             end
         end
         
-        if myHero.pos:DistanceTo(target.pos) <= 400 and self.Menu.Harass.UseW:Value() and _G.L9Engine:Ready(_W) then
+        if myHero.pos:DistanceTo(target.pos) <= 400 and self.Menu.Harass.UseW:Value() and _G.L9Engine:IsSpellReady(_W) then
             Control.CastSpell(HK_W, target)
         end
     end
@@ -240,13 +240,13 @@ end
 function L9Sylas:LastHit()
     for i = 1, Game.MinionCount() do
         local minion = Game.Minion(i)
-        local target = _G.L9Engine:GetTarget(1000)
+        local target = _G.L9Engine:GetBestTarget(1000)
         if target == nil then
-            if myHero.pos:DistanceTo(minion.pos) <= 800 and minion.team == TEAM_ENEMY and _G.L9Engine:IsValidTarget(minion) and myHero.mana/myHero.maxMana >= self.Menu.Clear.Mana:Value() / 100 then
-                local count = _G.L9Engine:GetMinionCount(225, minion)
+            if myHero.pos:DistanceTo(minion.pos) <= 800 and minion.team == TEAM_ENEMY and _G.L9Engine:IsValidEnemy(minion) and myHero.mana/myHero.maxMana >= self.Menu.Clear.Mana:Value() / 100 then
+                local count = _G.L9Engine:CountEnemyMinions(225)
                 local hp = minion.health
                 local QDmg = getdmg("Q", minion, myHero) or 0
-                if _G.L9Engine:Ready(_Q) and self.Menu.Harass.LH.UseQL:Value() and count >= self.Menu.Harass.LH.UseQLM:Value() and hp <= QDmg then
+                if _G.L9Engine:IsSpellReady(_Q) and self.Menu.Harass.LH.UseQL:Value() and count >= self.Menu.Harass.LH.UseQLM:Value() and hp <= QDmg then
                     Control.CastSpell(HK_Q, minion)
                 end
             end
@@ -257,9 +257,9 @@ end
 function L9Sylas:Clear()
     for i = 1, Game.MinionCount() do
         local minion = Game.Minion(i)
-        local passiveBuff = _G.L9Engine:GetBuffData(myHero, "SylasPassiveAttack")
+        local passiveBuff = _G.L9Engine:GetUnitBuff(myHero, "SylasPassiveAttack")
         
-        if myHero.pos:DistanceTo(minion.pos) <= 1300 and minion.team == TEAM_ENEMY and _G.L9Engine:IsValidTarget(minion) and myHero.mana/myHero.maxMana >= self.Menu.Clear.Mana:Value() / 100 then
+        if myHero.pos:DistanceTo(minion.pos) <= 1300 and minion.team == TEAM_ENEMY and _G.L9Engine:IsValidEnemy(minion) and myHero.mana/myHero.maxMana >= self.Menu.Clear.Mana:Value() / 100 then
             
             if myHero.pos:DistanceTo(minion.pos) <= 800 and myHero:GetSpellData(_E).name == "SylasE2" then
                 local prediction = GetPrediction(minion, "E")
@@ -268,17 +268,17 @@ function L9Sylas:Clear()
                 end
             end
             
-            if myHero.pos:DistanceTo(minion.pos) < 1300 and _G.L9Engine:Ready(_E) and self.Menu.Clear.UseE:Value() and myHero:GetSpellData(_E).name == "SylasE" then
+            if myHero.pos:DistanceTo(minion.pos) < 1300 and _G.L9Engine:IsSpellReady(_E) and self.Menu.Clear.UseE:Value() and myHero:GetSpellData(_E).name == "SylasE" then
                 Control.CastSpell(HK_E, minion)
             end
             
-            if passiveBuff.count == 1 and myHero.pos:DistanceTo(minion.pos) < 400 then return end
+            if passiveBuff and passiveBuff.count == 1 and myHero.pos:DistanceTo(minion.pos) < 400 then return end
             
-            if myHero.pos:DistanceTo(minion.pos) <= 755 and _G.L9Engine:Ready(_Q) and self.Menu.Clear.UseQL:Value() and _G.L9Engine:GetMinionCount(225, minion) >= self.Menu.Clear.UseQLM:Value() then
+            if myHero.pos:DistanceTo(minion.pos) <= 755 and _G.L9Engine:IsSpellReady(_Q) and self.Menu.Clear.UseQL:Value() and _G.L9Engine:CountEnemyMinions(225) >= self.Menu.Clear.UseQLM:Value() then
                 Control.CastSpell(HK_Q, minion)
             end
             
-            if myHero.pos:DistanceTo(minion.pos) <= 400 and _G.L9Engine:Ready(_W) and self.Menu.Clear.UseW:Value() then
+            if myHero.pos:DistanceTo(minion.pos) <= 400 and _G.L9Engine:IsSpellReady(_W) and self.Menu.Clear.UseW:Value() then
                 Control.CastSpell(HK_W, minion)
             end
         end
@@ -289,7 +289,7 @@ function L9Sylas:JungleClear()
     for i = 1, Game.MinionCount() do
         local minion = Game.Minion(i)
         
-        if myHero.pos:DistanceTo(minion.pos) <= 1300 and minion.team == TEAM_JUNGLE and _G.L9Engine:IsValidTarget(minion) and myHero.mana/myHero.maxMana >= self.Menu.JClear.Mana:Value() / 100 then
+        if myHero.pos:DistanceTo(minion.pos) <= 1300 and minion.team == TEAM_JUNGLE and _G.L9Engine:IsValidEnemy(minion) and myHero.mana/myHero.maxMana >= self.Menu.JClear.Mana:Value() / 100 then
             
             if myHero.pos:DistanceTo(minion.pos) <= 800 and myHero:GetSpellData(_E).name == "SylasE2" then
                 local prediction = GetPrediction(minion, "E")
@@ -298,18 +298,18 @@ function L9Sylas:JungleClear()
                 end
             end
             
-            if myHero.pos:DistanceTo(minion.pos) < 1300 and _G.L9Engine:Ready(_E) and self.Menu.JClear.UseE:Value() and myHero:GetSpellData(_E).name == "SylasE" then
+            if myHero.pos:DistanceTo(minion.pos) < 1300 and _G.L9Engine:IsSpellReady(_E) and self.Menu.JClear.UseE:Value() and myHero:GetSpellData(_E).name == "SylasE" then
                 Control.CastSpell(HK_E, minion)
             end
             
-            local passiveBuff = _G.L9Engine:GetBuffData(myHero, "SylasPassiveAttack")
-            if passiveBuff.count == 1 and myHero.pos:DistanceTo(minion.pos) < 400 then return end
+            local passiveBuff = _G.L9Engine:GetUnitBuff(myHero, "SylasPassiveAttack")
+            if passiveBuff and passiveBuff.count == 1 and myHero.pos:DistanceTo(minion.pos) < 400 then return end
             
-            if myHero.pos:DistanceTo(minion.pos) <= 775 and _G.L9Engine:Ready(_Q) and self.Menu.JClear.UseQ:Value() then
+            if myHero.pos:DistanceTo(minion.pos) <= 775 and _G.L9Engine:IsSpellReady(_Q) and self.Menu.JClear.UseQ:Value() then
                 Control.CastSpell(HK_Q, minion)
             end
             
-            if myHero.pos:DistanceTo(minion.pos) <= 400 and _G.L9Engine:Ready(_W) and self.Menu.JClear.UseW:Value() then
+            if myHero.pos:DistanceTo(minion.pos) <= 400 and _G.L9Engine:IsSpellReady(_W) and self.Menu.JClear.UseW:Value() then
                 Control.CastSpell(HK_W, minion)
             end
         end
@@ -317,11 +317,11 @@ function L9Sylas:JungleClear()
 end
 
 function L9Sylas:KillSteal()
-    local target = _G.L9Engine:GetTarget(25000)
+    local target = _G.L9Engine:GetBestTarget(25000)
     if target == nil then return end
     
-    if _G.L9Engine:IsValidTarget(target) then
-        if self.Menu.ks.UseQ:Value() and _G.L9Engine:Ready(_Q) and myHero.pos:DistanceTo(target.pos) <= 775 then
+    if _G.L9Engine:IsValidEnemy(target) then
+        if self.Menu.ks.UseQ:Value() and _G.L9Engine:IsSpellReady(_Q) and myHero.pos:DistanceTo(target.pos) <= 775 then
             local QDmg = getdmg("Q", target, myHero) or 0
             if target.health <= QDmg then
                 local prediction = GetPrediction(target, "Q")
@@ -331,7 +331,7 @@ function L9Sylas:KillSteal()
             end
         end
         
-        if self.Menu.ks.UseE:Value() and _G.L9Engine:Ready(_E) and myHero.pos:DistanceTo(target.pos) <= 800 then
+        if self.Menu.ks.UseE:Value() and _G.L9Engine:IsSpellReady(_E) and myHero.pos:DistanceTo(target.pos) <= 800 then
             local EDmg = getdmg("E", target, myHero) or 0
             if target.health <= EDmg then
                 if myHero:GetSpellData(_E).name == "SylasE2" then
@@ -345,7 +345,7 @@ function L9Sylas:KillSteal()
             end
         end
         
-        if self.Menu.ks.UseW:Value() and _G.L9Engine:Ready(_W) and myHero.pos:DistanceTo(target.pos) <= 400 then
+        if self.Menu.ks.UseW:Value() and _G.L9Engine:IsSpellReady(_W) and myHero.pos:DistanceTo(target.pos) <= 400 then
             local WDmg = getdmg("W", target, myHero) or 0
             if target.health <= WDmg then
                 Control.CastSpell(HK_W, target)
@@ -355,10 +355,10 @@ function L9Sylas:KillSteal()
 end
 
 function L9Sylas:AutoW()
-    local target = _G.L9Engine:GetTarget(400)
+    local target = _G.L9Engine:GetBestTarget(400)
     if target == nil then return end
     
-    if _G.L9Engine:IsValidTarget(target) and myHero.pos:DistanceTo(target.pos) <= 400 and self.Menu.AutoW.UseW:Value() and _G.L9Engine:Ready(_W) then
+    if _G.L9Engine:IsValidEnemy(target) and myHero.pos:DistanceTo(target.pos) <= 400 and self.Menu.AutoW.UseW:Value() and _G.L9Engine:IsSpellReady(_W) then
         if myHero.health/myHero.maxHealth <= self.Menu.AutoW.hp:Value()/100 then
             Control.CastSpell(HK_W, target)
         end
@@ -372,22 +372,22 @@ function L9Sylas:Draw()
     
     local textPos = myHero.pos:To2D()
     
-    if self.Menu.Drawing.DrawQ:Value() and _G.L9Engine:Ready(_Q) then
+    if self.Menu.Drawing.DrawQ:Value() and _G.L9Engine:IsSpellReady(_Q) then
         Draw.Circle(myHero.pos, SPELL_RANGE.Q, 1, Draw.Color(255, 255, 0, 0))
     end
     
-    if self.Menu.Drawing.DrawW:Value() and _G.L9Engine:Ready(_W) then
+    if self.Menu.Drawing.DrawW:Value() and _G.L9Engine:IsSpellReady(_W) then
         Draw.Circle(myHero.pos, SPELL_RANGE.W, 1, Draw.Color(255, 0, 255, 0))
     end
     
-    if self.Menu.Drawing.DrawE:Value() and _G.L9Engine:Ready(_E) then
+    if self.Menu.Drawing.DrawE:Value() and _G.L9Engine:IsSpellReady(_E) then
         Draw.Circle(myHero.pos, SPELL_RANGE.E, 1, Draw.Color(255, 0, 0, 255))
     end
     
     if self.Menu.Drawing.Kill:Value() then
         for i = 1, Game.HeroCount() do
             local hero = Game.Hero(i)
-            if hero.isEnemy and _G.L9Engine:IsValidTarget(hero) and myHero.pos:DistanceTo(hero.pos) <= 2000 then
+            if hero.isEnemy and _G.L9Engine:IsValidEnemy(hero) and myHero.pos:DistanceTo(hero.pos) <= 2000 then
                 local QDmg = getdmg("Q", hero, myHero) or 0
                 local WDmg = getdmg("W", hero, myHero) or 0
                 local EDmg = getdmg("E", hero, myHero) or 0
@@ -401,8 +401,9 @@ function L9Sylas:Draw()
         end
     end
     
-    local passiveBuff = _G.L9Engine:GetBuffData(myHero, "SylasPassiveAttack")
+    local passiveBuff = _G.L9Engine:GetUnitBuff(myHero, "SylasPassiveAttack")
     Draw.Text("Passive Stacks: " .. (passiveBuff.count or 0), 15, textPos.x - 80, textPos.y + 60, Draw.Color(255, 255, 255, 255))
 end
 
 L9Sylas()
+
