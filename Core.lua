@@ -43,18 +43,6 @@ end
 
 function L9Engine:SetupKeybindSystem()
     self:UpdateKeybindMap()
-    
-    self.Menu.layout.type:Callback(function()
-        self:UpdateKeybindMap()
-    end)
-    
-    self.Menu.layout.customQ:Callback(function()
-        self:UpdateKeybindMap()
-    end)
-    
-    self.Menu.layout.customW:Callback(function()
-        self:UpdateKeybindMap()
-    end)
 end
 
 function L9Engine:UpdateKeybindMap()
@@ -74,13 +62,6 @@ function L9Engine:SetupDownloadSystem()
     if self.Menu.config.autoUpdate:Value() then
         self:QueueChampionDownload(myHero.charName)
     end
-    
-    self.Menu.config.forceUpdate:Callback(function()
-        if self.Menu.config.forceUpdate:Value() then
-            self:ForceUpdateChampion(myHero.charName)
-            self.Menu.config.forceUpdate:Value(false)
-        end
-    end)
 end
 
 function L9Engine:QueueChampionDownload(championName)
@@ -249,7 +230,6 @@ L9Engine()
 local championLoader
 championLoader = function()
     if _G.L9EngineChampionLoaded then
-        Callback.Del("Tick", championLoader)
         return
     end
     
@@ -260,12 +240,16 @@ championLoader = function()
         local success, error = pcall(dofile, filePath)
         if success then
             _G.L9EngineChampionLoaded = true
-            Callback.Del("Tick", championLoader)
             print("[L9Engine] Champion chargé: " .. championName)
         end
     end
 end
-Callback.Add("Tick", championLoader)
+
+if Callback then
+    Callback.Add("Tick", championLoader)
+else
+    DelayAction(championLoader, 1)
+end
 
 print("[L9Engine] Engine original initialisé avec système de téléchargement")
 print("[L9Engine] Champions supportés: " .. table.concat(SUPPORTED_CHAMPIONS, ", "))
