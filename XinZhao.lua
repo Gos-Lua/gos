@@ -1,21 +1,19 @@
--- L9Engine compatibility guard
 if _G.__L9_ENGINE_XINZHAO_LOADED then return end
 _G.__L9_ENGINE_XINZHAO_LOADED = true
 
-local Version = 1.0
+local Version = "1.0.0"
 local Name = "L9Xin"
+local GitHubURL = "https://github.com/Gos-Lua/gos/blob/main/XinZhao.lua"
 
--- Hero validation
 local Heroes = {"XinZhao"}
 if not table.contains(Heroes, myHero.charName) then return end
 
--- Load prediction system
 require("DepressivePrediction")
 local PredictionLoaded = false
 DelayAction(function()
     if _G.DepressivePrediction then
         PredictionLoaded = true
-        print("L9Xin: DepressivePrediction loaded!")
+        print("[L9Xin] DepressivePrediction chargé!")
     end
 end, 1.0)
 
@@ -31,16 +29,13 @@ local function CheckPredictionSystem()
     return true
 end
 
--- Variables pour tracker l'état du W
 local WLastCastTime = 0
 local WTarget = nil
-local WDuration = 3.0 -- Durée du W en secondes
+local WDuration = 3.0
 
--- Fonction pour vérifier si le W a touché la cible récemment
 local function IsWActiveOnTarget(target)
     if not target or not WTarget then return false end
     
-    -- Vérifier si c'est la même cible et si le W est encore actif
     if target.networkID == WTarget.networkID then
         local timeSinceW = Game.Timer() - WLastCastTime
         return timeSinceW < WDuration
@@ -49,7 +44,6 @@ local function IsWActiveOnTarget(target)
     return false
 end
 
--- Fonction pour obtenir la portée réelle de l'E (650 normal, 900 avec W actif sur la cible)
 local function GetERange(target)
     if target and IsWActiveOnTarget(target) then
         return 900
@@ -57,11 +51,10 @@ local function GetERange(target)
     return 650
 end
 
--- Fonction pour vérifier si l'ennemi est bumpé par le Q
 local function IsTargetBumped(target)
     local buffNames = {"XinZhaoQKnockup", "XinZhaoQ", "ThreeTalonStrike", "threetalonstrike", "knockup", "airborne"}
     for _, buffName in ipairs(buffNames) do
-        local buff = _G.L9Engine:GetBuffData(target, buffName)
+        local buff = _G.L9Engine:GetUnitBuff(target, buffName)
         if buff then
             return true
         end
@@ -69,11 +62,10 @@ local function IsTargetBumped(target)
     return false
 end
 
--- Fonction pour compter les hits du Q
 local function GetQHits()
     local buffNames = {"XinZhaoQ", "ThreeTalonStrike", "threetalonstrike"}
     for _, buffName in ipairs(buffNames) do
-        local buff = _G.L9Engine:GetBuffData(myHero, buffName)
+        local buff = _G.L9Engine:GetUnitBuff(myHero, buffName)
         if buff then
             return buff.count or 0
         end
@@ -84,7 +76,7 @@ end
 local SPELL_RANGE = {
     Q = 175,
     W = 900,
-    E = 650, -- Sera ajusté dynamiquement
+    E = 650,
     R = 500
 }
 
@@ -234,14 +226,11 @@ function L9Xin:Combo()
         local eRange = GetERange(target)
         local distance = myHero.pos:DistanceTo(target.pos)
         
-        -- Logique de combo intelligente
         if self.Menu.Combo.ComboLogic:Value() then
-            -- 1. Si pas en range E (650) et W pas actif sur la cible -> Utiliser W pour étendre la portée
             if distance > 650 and not IsWActiveOnTarget(target) and self.Menu.Combo.UseW:Value() and _G.L9Engine:Ready(_W) then
                 local prediction = GetPrediction(target, "W")
                 if prediction and prediction[1] and prediction[2] and prediction[2] >= 2 then
                     Control.CastSpell(HK_W, Vector(prediction[1].x, myHero.pos.y, prediction[1].z))
-                    -- Enregistrer le cast du W
                     WLastCastTime = Game.Timer()
                     WTarget = target
                 else
@@ -252,7 +241,6 @@ function L9Xin:Combo()
                 return
             end
             
-            -- 2. Si en range E (avec ou sans W) -> E vers la cible
             if distance <= eRange and self.Menu.Combo.UseE:Value() and _G.L9Engine:Ready(_E) then
                 local prediction = GetPrediction(target, "E")
                 if prediction and prediction[1] and prediction[2] and prediction[2] >= 2 then
@@ -263,13 +251,11 @@ function L9Xin:Combo()
                 return
             end
             
-            -- 3. Si proche de la cible -> Q pour les 3 hits
             if distance <= 175 and self.Menu.Combo.UseQ:Value() and _G.L9Engine:Ready(_Q) then
                 Control.CastSpell(HK_Q)
                 return
             end
             
-            -- 4. Si la cible est bumpée par le Q -> W pour le knockback
             if distance <= 175 and IsTargetBumped(target) and self.Menu.Combo.UseW:Value() and _G.L9Engine:Ready(_W) then
                 local prediction = GetPrediction(target, "W")
                 if prediction and prediction[1] and prediction[2] and prediction[2] >= 2 then
@@ -280,7 +266,6 @@ function L9Xin:Combo()
                 return
             end
             
-            -- 5. R Logic (si tout le reste est fait)
             if distance <= 500 and self.Menu.Combo.UseR:Value() and _G.L9Engine:Ready(_R) then
                 local prediction = GetPrediction(target, "R")
                 if prediction and prediction[1] and prediction[2] and prediction[2] >= 2 then
@@ -290,13 +275,10 @@ function L9Xin:Combo()
                 end
             end
             
-            -- 6. Auto Attack
             if distance <= 175 and _G.SDK and _G.SDK.Orbwalker:CanAttack() then
                 Control.Attack(target)
             end
         else
-            -- Ancienne logique simple
-            -- E Logic (Gapcloser) - utilise la portée dynamique
             if distance <= eRange and self.Menu.Combo.UseE:Value() and _G.L9Engine:Ready(_E) then
                 local prediction = GetPrediction(target, "E")
                 if prediction and prediction[1] and prediction[2] and prediction[2] >= 2 then
@@ -306,7 +288,6 @@ function L9Xin:Combo()
                 end
             end
             
-            -- W Logic
             if distance <= 900 and self.Menu.Combo.UseW:Value() and _G.L9Engine:Ready(_W) then
                 local prediction = GetPrediction(target, "W")
                 if prediction and prediction[1] and prediction[2] and prediction[2] >= 2 then
@@ -316,7 +297,6 @@ function L9Xin:Combo()
                 end
             end
             
-            -- R Logic
             if distance <= 500 and self.Menu.Combo.UseR:Value() and _G.L9Engine:Ready(_R) then
                 local prediction = GetPrediction(target, "R")
                 if prediction and prediction[1] and prediction[2] and prediction[2] >= 2 then
@@ -326,12 +306,10 @@ function L9Xin:Combo()
                 end
             end
             
-            -- Q Logic (Auto Attack Reset)
             if distance <= 175 and self.Menu.Combo.UseQ:Value() and _G.L9Engine:Ready(_Q) then
                 Control.CastSpell(HK_Q)
             end
             
-            -- Auto Attack
             if distance <= 175 and _G.SDK and _G.SDK.Orbwalker:CanAttack() then
                 Control.Attack(target)
             end
@@ -346,7 +324,6 @@ function L9Xin:Harass()
     if _G.L9Engine:IsValidTarget(target) and myHero.mana/myHero.maxMana >= self.Menu.Harass.Mana:Value() / 100 then
         local eRange = GetERange(target)
         
-        -- E Logic
         if myHero.pos:DistanceTo(target.pos) <= eRange and self.Menu.Harass.UseE:Value() and _G.L9Engine:Ready(_E) then
             local prediction = GetPrediction(target, "E")
             if prediction and prediction[1] and prediction[2] and prediction[2] >= 2 then
@@ -356,7 +333,6 @@ function L9Xin:Harass()
             end
         end
         
-        -- W Logic
         if myHero.pos:DistanceTo(target.pos) <= 900 and self.Menu.Harass.UseW:Value() and _G.L9Engine:Ready(_W) then
             local prediction = GetPrediction(target, "W")
             if prediction and prediction[1] and prediction[2] and prediction[2] >= 2 then
@@ -366,7 +342,6 @@ function L9Xin:Harass()
             end
         end
         
-        -- Q Logic
         if myHero.pos:DistanceTo(target.pos) <= 175 and self.Menu.Harass.UseQ:Value() and _G.L9Engine:Ready(_Q) then
             Control.CastSpell(HK_Q)
         end
@@ -380,7 +355,6 @@ function L9Xin:LaneClear()
         
         if myHero.pos:DistanceTo(minion.pos) <= eRange and minion.team == TEAM_ENEMY and _G.L9Engine:IsValidTarget(minion) and myHero.mana/myHero.maxMana >= self.Menu.Clear.Mana:Value() / 100 then
             
-            -- E Logic
             if myHero.pos:DistanceTo(minion.pos) <= eRange and _G.L9Engine:Ready(_E) and self.Menu.Clear.UseE:Value() then
                 local prediction = GetPrediction(minion, "E")
                 if prediction and prediction[1] and prediction[2] and prediction[2] >= 1 then
@@ -389,7 +363,6 @@ function L9Xin:LaneClear()
                 end
             end
             
-            -- W Logic
             if myHero.pos:DistanceTo(minion.pos) <= 900 and _G.L9Engine:Ready(_W) and self.Menu.Clear.UseW:Value() then
                 local prediction = GetPrediction(minion, "W")
                 if prediction and prediction[1] and prediction[2] and prediction[2] >= 1 then
@@ -398,7 +371,6 @@ function L9Xin:LaneClear()
                 end
             end
             
-            -- Q Logic
             if myHero.pos:DistanceTo(minion.pos) <= 175 and _G.L9Engine:Ready(_Q) and self.Menu.Clear.UseQ:Value() then
                 Control.CastSpell(HK_Q)
                 break
@@ -414,7 +386,6 @@ function L9Xin:JungleClear()
         
         if myHero.pos:DistanceTo(minion.pos) <= eRange and minion.team == TEAM_JUNGLE and _G.L9Engine:IsValidTarget(minion) and myHero.mana/myHero.maxMana >= self.Menu.JClear.Mana:Value() / 100 then
             
-            -- E Logic
             if myHero.pos:DistanceTo(minion.pos) <= eRange and _G.L9Engine:Ready(_E) and self.Menu.JClear.UseE:Value() then
                 local prediction = GetPrediction(minion, "E")
                 if prediction and prediction[1] and prediction[2] and prediction[2] >= 1 then
@@ -423,7 +394,6 @@ function L9Xin:JungleClear()
                 end
             end
             
-            -- W Logic
             if myHero.pos:DistanceTo(minion.pos) <= 900 and _G.L9Engine:Ready(_W) and self.Menu.JClear.UseW:Value() then
                 local prediction = GetPrediction(minion, "W")
                 if prediction and prediction[1] and prediction[2] and prediction[2] >= 1 then
@@ -432,7 +402,6 @@ function L9Xin:JungleClear()
                 end
             end
             
-            -- Q Logic
             if myHero.pos:DistanceTo(minion.pos) <= 175 and _G.L9Engine:Ready(_Q) and self.Menu.JClear.UseQ:Value() then
                 Control.CastSpell(HK_Q)
                 break
@@ -447,7 +416,6 @@ function L9Xin:LastHit()
         
         if myHero.pos:DistanceTo(minion.pos) <= 175 and minion.team == TEAM_ENEMY and _G.L9Engine:IsValidTarget(minion) and myHero.mana/myHero.maxMana >= self.Menu.LastHit.Mana:Value() / 100 then
             
-            -- Q Logic for LastHit
             if myHero.pos:DistanceTo(minion.pos) <= 175 and _G.L9Engine:Ready(_Q) and self.Menu.LastHit.UseQ:Value() then
                 local QDmg = getdmg("Q", minion, myHero) or 0
                 if minion.health <= QDmg then
@@ -466,7 +434,6 @@ function L9Xin:KillSteal()
     if _G.L9Engine:IsValidTarget(target) then
         local eRange = GetERange(target)
         
-        -- R KillSteal
         if self.Menu.ks.UseR:Value() and _G.L9Engine:Ready(_R) and myHero.pos:DistanceTo(target.pos) <= 500 then
             local RDmg = getdmg("R", target, myHero) or 0
             if target.health <= RDmg then
@@ -477,7 +444,6 @@ function L9Xin:KillSteal()
             end
         end
         
-        -- E KillSteal
         if self.Menu.ks.UseE:Value() and _G.L9Engine:Ready(_E) and myHero.pos:DistanceTo(target.pos) <= eRange then
             local EDmg = getdmg("E", target, myHero) or 0
             if target.health <= EDmg then
@@ -488,7 +454,6 @@ function L9Xin:KillSteal()
             end
         end
         
-        -- W KillSteal
         if self.Menu.ks.UseW:Value() and _G.L9Engine:Ready(_W) and myHero.pos:DistanceTo(target.pos) <= 900 then
             local WDmg = getdmg("W", target, myHero) or 0
             if target.health <= WDmg then
@@ -499,7 +464,6 @@ function L9Xin:KillSteal()
             end
         end
         
-        -- Q KillSteal
         if self.Menu.ks.UseQ:Value() and _G.L9Engine:Ready(_Q) and myHero.pos:DistanceTo(target.pos) <= 175 then
             local QDmg = getdmg("Q", target, myHero) or 0
             if target.health <= QDmg then
@@ -525,7 +489,7 @@ function L9Xin:Draw()
     if self.Menu.Drawing.DrawE:Value() and _G.L9Engine:Ready(_E) then
         local target = _G.L9Engine:GetTarget(1000)
         local eRange = target and GetERange(target) or 650
-        local color = (target and IsWActiveOnTarget(target)) and Draw.Color(255, 255, 165, 0) or Draw.Color(255, 0, 0, 255) -- Orange si W actif, bleu sinon
+        local color = (target and IsWActiveOnTarget(target)) and Draw.Color(255, 255, 165, 0) or Draw.Color(255, 0, 0, 255)
         Draw.Circle(myHero.pos, eRange, 1, color)
     end
     
@@ -533,11 +497,10 @@ function L9Xin:Draw()
         Draw.Circle(myHero.pos, SPELL_RANGE.R, 1, Draw.Color(255, 255, 255, 0))
     end
     
-    -- Affichage spécial pour la portée étendue de l'E quand W est actif
     if self.Menu.Drawing.DrawWActive:Value() then
         local target = _G.L9Engine:GetTarget(1000)
         if target and IsWActiveOnTarget(target) and _G.L9Engine:Ready(_E) then
-            Draw.Circle(myHero.pos, 900, 1, Draw.Color(255, 255, 165, 0)) -- Orange pour la portée étendue
+            Draw.Circle(myHero.pos, 900, 1, Draw.Color(255, 255, 165, 0))
         end
     end
 end

@@ -1,13 +1,8 @@
--- L9Engine Core - Version Originale
--- Engine centralisé pour tous les scripts L9
--- Système de téléchargement automatique depuis GitHub
-
 if _G.L9EngineLoaded then return end
 _G.L9EngineLoaded = true
 
 class "L9Engine"
 
--- Configuration GitHub
 local GITHUB_RAW_URL = "https://raw.githubusercontent.com/Gos-Lua/gos/main/"
 local SUPPORTED_CHAMPIONS = {
     "Sylas", "Pyke", "Aurora", "Draven", "XinZhao", "MasterYi", "Thresh"
@@ -30,12 +25,10 @@ function L9Engine:CreateMainMenu()
     self.Menu = MenuElement({type = MENU, id = "L9Engine", name = "L9Engine"})
     self.Menu:MenuElement({name = " ", drop = {"Engine L9 - Version Originale"}})
     
-    -- Menu Configuration
     self.Menu:MenuElement({type = MENU, id = "config", name = "Configuration"})
     self.Menu.config:MenuElement({id = "autoUpdate", name = "Mise à jour automatique", value = true})
     self.Menu.config:MenuElement({id = "forceUpdate", name = "Forcer mise à jour", value = false})
     
-    -- Menu Layout
     self.Menu:MenuElement({type = MENU, id = "layout", name = "Configuration Clavier"})
     self.Menu.layout:MenuElement({id = "type", name = "Type de clavier", value = 1, drop = {"QWERTY", "AZERTY"}})
     self.Menu.layout:MenuElement({id = "customQ", name = "Touche Q", value = 1, drop = {"Q", "A"}})
@@ -43,7 +36,6 @@ function L9Engine:CreateMainMenu()
     self.Menu.layout:MenuElement({id = "customE", name = "Touche E", value = 1, drop = {"E", "E"}})
     self.Menu.layout:MenuElement({id = "customR", name = "Touche R", value = 1, drop = {"R", "R"}})
     
-    -- Menu Debug
     self.Menu:MenuElement({type = MENU, id = "debug", name = "Debug"})
     self.Menu.debug:MenuElement({id = "enabled", name = "Activer Debug", value = false})
     self.Menu.debug:MenuElement({id = "showDownloads", name = "Afficher téléchargements", value = true})
@@ -52,7 +44,6 @@ end
 function L9Engine:SetupKeybindSystem()
     self:UpdateKeybindMap()
     
-    -- Callback pour mettre à jour les keybinds
     self.Menu.layout.type:Callback(function()
         self:UpdateKeybindMap()
     end)
@@ -84,7 +75,6 @@ function L9Engine:SetupDownloadSystem()
         self:QueueChampionDownload(myHero.charName)
     end
     
-    -- Callback pour forcer la mise à jour
     self.Menu.config.forceUpdate:Callback(function()
         if self.Menu.config.forceUpdate:Value() then
             self:ForceUpdateChampion(myHero.charName)
@@ -103,7 +93,6 @@ function L9Engine:QueueChampionDownload(championName)
     local localPath = COMMON_PATH .. "L9Engine/Champions/" .. fileName
     local remoteUrl = GITHUB_RAW_URL .. fileName
     
-    -- Vérifier si le fichier existe localement
     if not FileExist(localPath) or self.Menu.config.forceUpdate:Value() then
         self:DownloadFile(remoteUrl, localPath, championName)
     else
@@ -116,12 +105,9 @@ function L9Engine:DownloadFile(url, localPath, championName)
         print("[L9Engine] Téléchargement de " .. championName .. " depuis GitHub...")
     end
     
-    -- Simulation de téléchargement (GoS ne supporte pas les requêtes HTTP directes)
-    -- En pratique, l'utilisateur devra télécharger manuellement ou utiliser un système externe
     self:LogDebug("URL de téléchargement: " .. url)
     self:LogDebug("Chemin local: " .. localPath)
     
-    -- Pour l'instant, on essaie de charger le fichier local
     self:LoadChampionFile(localPath, championName)
 end
 
@@ -164,7 +150,6 @@ function L9Engine:LoadChampionModule()
     end
 end
 
--- Fonctions utilitaires communes
 function L9Engine:GetKeybind(spell)
     return self.KeybindMap[spell] or HK_Q
 end
@@ -183,7 +168,6 @@ function L9Engine:LogDebug(message)
     end
 end
 
--- Fonctions de combat communes
 function L9Engine:CalculateDistance(pos1, pos2)
     if not pos1 or not pos2 then return math.huge end
     local dx = pos1.x - pos2.x
@@ -260,10 +244,8 @@ function L9Engine:CountEnemyMinions(range)
     return count
 end
 
--- Initialisation
 L9Engine()
 
--- Système de retry pour le chargement des champions
 local championLoader
 championLoader = function()
     if _G.L9EngineChampionLoaded then
