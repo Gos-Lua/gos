@@ -432,7 +432,7 @@ function L9Nami:Draw()
                     color = Draw.Color(255, 255, 255, 0) -- Jaune
                 end
                 
-                local textPos = Draw.WorldToScreen(ally.pos)
+                local textPos = Renderer.WorldToScreen(ally.pos)
                 if textPos then
                     Draw.Text(ally.charName .. ": " .. math.floor(healthPercent * 100) .. "%", 15, textPos.x - 40, textPos.y + yOffset, color)
                     yOffset = yOffset + 20

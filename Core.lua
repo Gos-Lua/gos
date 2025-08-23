@@ -30,6 +30,17 @@ function L9Engine:SetupKeybindSystem()
 end
 
 function L9Engine:UpdateKeybindMap()
+    if not self.Menu or not self.Menu.layout then
+        -- Fallback si le menu n'est pas encore créé
+        self.KeybindMap = {
+            Q = HK_Q,
+            W = HK_W,
+            E = HK_E,
+            R = HK_R
+        }
+        return
+    end
+    
     local isAZERTY = self.Menu.layout.type:Value() == 2
     
     self.KeybindMap = {
@@ -57,6 +68,9 @@ function L9Engine:LoadChampionModule()
 end
 
 function L9Engine:GetKeybind(spell)
+    if not self.KeybindMap then
+        self:UpdateKeybindMap()
+    end
     return self.KeybindMap[spell] or HK_Q
 end
 
