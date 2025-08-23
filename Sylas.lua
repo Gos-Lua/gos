@@ -402,7 +402,8 @@ function L9Sylas:Draw()
     end
     
     local passiveBuff = _G.L9Engine:GetUnitBuff(myHero, "SylasPassiveAttack")
-    Draw.Text("Passive Stacks: " .. (passiveBuff.count or 0), 15, textPos.x - 80, textPos.y + 60, Draw.Color(255, 255, 255, 255))
+    local passiveStacks = passiveBuff and passiveBuff.count or 0
+    Draw.Text("Passive Stacks: " .. passiveStacks, 15, textPos.x - 80, textPos.y + 60, Draw.Color(255, 255, 255, 255))
 end
 
 L9Sylas()
