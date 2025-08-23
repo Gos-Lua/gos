@@ -3,6 +3,9 @@ local BASE_URL = "https://raw.githubusercontent.com/Gos-Lua/gos/main/"
 local LOCAL_PATH = COMMON_PATH .. AIO_FOLDER .. "/"
 local CORE_FILE = LOCAL_PATH .. "Core.lua"
 
+-- Option pour désactiver les mises à jour automatiques
+local AUTO_UPDATE = true -- Mettre à false pour désactiver
+
 local CHAMPION_SCRIPTS = {
     "Sylas.lua",
     "Pyke.lua", 
@@ -49,11 +52,19 @@ end
 local function CheckAndDownload()
     EnsureDir()
     for fullPath, shortName in pairs(needed) do
-        if not FileExists(fullPath) then
-            print(string.format("[L9Engine] Téléchargement de %s depuis GitHub...", shortName))
+        if AUTO_UPDATE then
+            print(string.format("[L9Engine] Mise à jour de %s depuis GitHub...", shortName))
             Download(BASE_URL .. shortName, fullPath, function()
-                print(string.format("[L9Engine] %s prêt", shortName))
+                print(string.format("[L9Engine] %s mis à jour", shortName))
             end)
+        else
+            -- Mode local uniquement
+            if not FileExists(fullPath) then
+                print(string.format("[L9Engine] Téléchargement de %s depuis GitHub...", shortName))
+                Download(BASE_URL .. shortName, fullPath, function()
+                    print(string.format("[L9Engine] %s prêt", shortName))
+                end)
+            end
         end
     end
 end
@@ -84,6 +95,11 @@ local function TryLoadCore()
 end
 
 print("[L9Engine] Démarrage de l'engine original...")
+if AUTO_UPDATE then
+    print("[L9Engine] Mode: Mises à jour automatiques activées")
+else
+    print("[L9Engine] Mode: Mises à jour automatiques désactivées")
+end
 print("[L9Engine] Téléchargement depuis: https://github.com/Gos-Lua/gos")
 CheckAndDownload()
 
