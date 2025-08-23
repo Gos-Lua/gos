@@ -9,8 +9,9 @@ local Name = "L9Thresh"
 local Heroes = {"Thresh"}
 if not table.contains(Heroes, myHero.charName) then return end
 
--- Load Thresh-specific prediction system
+-- Load prediction and damage systems
 local ThreshPrediction = require("ThreshPrediction")
+require("DamageLib")
 local PredictionLoaded = false
 local PredictionVersion = "Unknown"
 
