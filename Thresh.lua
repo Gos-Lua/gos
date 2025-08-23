@@ -10,10 +10,29 @@ local Heroes = {"Thresh"}
 if not table.contains(Heroes, myHero.charName) then return end
 
 -- Load prediction and damage systems
-local ThreshPrediction = require("ThreshPrediction")
+require("DepressivePrediction")
 require("DamageLib")
 local PredictionLoaded = false
-local PredictionVersion = "Unknown"
+
+DelayAction(function()
+    if _G.DepressivePrediction then
+        PredictionLoaded = true
+        print("L9Thresh: DepressivePrediction loaded!")
+    end
+end, 1.0)
+
+-- Check if prediction system is working
+local function CheckPredictionSystem()
+    if not PredictionLoaded or not _G.DepressivePrediction then
+        return false
+    end
+    
+    if not _G.DepressivePrediction.GetPrediction then
+        return false
+    end
+    
+    return true
+end
 
 -- Spell constants
 local SPELL_RANGE = {
@@ -25,9 +44,9 @@ local SPELL_RANGE = {
 
 local SPELL_SPEED = {
     Q = 1900,
-    W = math.huge,
-    E = math.huge,
-    R = math.huge
+    W = 20,
+    E = 20,
+    R = 20
 }
 
 local SPELL_DELAY = {
@@ -37,35 +56,38 @@ local SPELL_DELAY = {
     R = 0.25
 }
 
-DelayAction(function()
-    if ThreshPrediction then
-        PredictionLoaded = true
-        PredictionVersion = ThreshPrediction.Version or "Unknown"
-        print("L9Thresh: ThreshPrediction v" .. PredictionVersion .. " loaded!")
-    end
-end, 1.0)
+local SPELL_RADIUS = {
+    Q = 70,
+    W = 100,
+    E = 100,
+    R = 100
+}
 
--- Check if prediction system is working
-local function CheckPredictionSystem()
-    if not PredictionLoaded or not ThreshPrediction then
-        return false
-    end
-    
-    if not ThreshPrediction.GetPrediction then
-        return false
-    end
-    
-    return true
-end
-
--- Get prediction for Thresh Q
-local function GetQPrediction(target)
+-- Get prediction using DepressivePrediction
+local function GetPrediction(target, spell)
     if not target or not target.valid then return nil, 0 end
     
     if CheckPredictionSystem() then
-        local prediction = ThreshPrediction.GetPrediction(target, SPELL_RANGE.Q, SPELL_SPEED.Q, SPELL_DELAY.Q, 70)
-        if prediction and prediction.hitchance then
-            return prediction.castPos, prediction.hitchance
+        local spellData = {
+            range = SPELL_RANGE[spell],
+            speed = SPELL_SPEED[spell],
+            delay = SPELL_DELAY[spell],
+            radius = SPELL_RADIUS[spell]
+        }
+        
+        local sourcePos2D = {x = myHero.pos.x, z = myHero.pos.z}
+        
+        local unitPos, castPos, timeToHit = _G.DepressivePrediction.GetPrediction(
+            target,
+            sourcePos2D,
+            spellData.speed,
+            spellData.delay,
+            spellData.radius
+        )
+        
+        if castPos and castPos.x and castPos.z then
+            local hitChance = 4
+            return {x = castPos.x, z = castPos.z}, hitChance
         end
     end
     
@@ -156,7 +178,7 @@ function L9Thresh:Combo()
         
         -- Q Logic (Death Sentence)
         if myHero.pos:DistanceTo(target.pos) <= 1075 and self.Menu.Combo.UseQ:Value() and _G.L9Engine:IsSpellReady(_Q) then
-            local prediction, hitChance = GetQPrediction(target)
+            local prediction, hitChance = GetPrediction(target, "Q")
             if prediction and hitChance >= self.Menu.Combo.QHitChance:Value() then
                 Control.CastSpell(HK_Q, Vector(prediction.x, myHero.pos.y, prediction.z))
             end
@@ -178,7 +200,7 @@ function L9Thresh:Harass()
         
         -- Q Logic (Death Sentence)
         if myHero.pos:DistanceTo(target.pos) <= 1075 and self.Menu.Harass.UseQ:Value() and _G.L9Engine:IsSpellReady(_Q) then
-            local prediction, hitChance = GetQPrediction(target)
+            local prediction, hitChance = GetPrediction(target, "Q")
             if prediction and hitChance >= self.Menu.Harass.QHitChance:Value() then
                 Control.CastSpell(HK_Q, Vector(prediction.x, myHero.pos.y, prediction.z))
             end
@@ -205,7 +227,7 @@ function L9Thresh:LaneClear()
             
             -- Q Logic (Death Sentence)
             if myHero.pos:DistanceTo(minion.pos) <= 1075 and _G.L9Engine:IsSpellReady(_Q) and self.Menu.Clear.UseQ:Value() then
-                local prediction, hitChance = GetQPrediction(minion)
+                local prediction, hitChance = GetPrediction(minion, "Q")
                 if prediction and hitChance >= 2 then
                     Control.CastSpell(HK_Q, Vector(prediction.x, myHero.pos.y, prediction.z))
                     break
@@ -229,7 +251,7 @@ function L9Thresh:JungleClear()
             
             -- Q Logic (Death Sentence)
             if myHero.pos:DistanceTo(minion.pos) <= 1075 and _G.L9Engine:IsSpellReady(_Q) and self.Menu.JClear.UseQ:Value() then
-                local prediction, hitChance = GetQPrediction(minion)
+                local prediction, hitChance = GetPrediction(minion, "Q")
                 if prediction and hitChance >= 2 then
                     Control.CastSpell(HK_Q, Vector(prediction.x, myHero.pos.y, prediction.z))
                     break
@@ -264,7 +286,7 @@ function L9Thresh:KillSteal()
         if self.Menu.ks.UseQ:Value() and _G.L9Engine:IsSpellReady(_Q) and myHero.pos:DistanceTo(target.pos) <= 1075 then
             local QDmg = getdmg("Q", target, myHero) or 0
             if target.health <= QDmg then
-                local prediction, hitChance = GetQPrediction(target)
+                local prediction, hitChance = GetPrediction(target, "Q")
                 if prediction and hitChance >= 2 then
                     Control.CastSpell(HK_Q, Vector(prediction.x, myHero.pos.y, prediction.z))
                 end
