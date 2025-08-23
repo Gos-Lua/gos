@@ -237,14 +237,14 @@ function L9Nami:AutoHeal()
     -- Heal l'allié le plus bas en HP
     if lowestAlly and lowestHealth < self.Menu.Heal.HealPercent:Value() / 100 then
         if myHero.pos:DistanceTo(lowestAlly.pos) <= SPELL_RANGE.W then
-            Control.CastSpell(HK_W, lowestAlly.pos)
+            Control.CastSpell(_G.L9Engine:GetKeybind("W"), lowestAlly.pos)
             return
         end
     end
     
     -- Heal soi-même si nécessaire
     if myHealthPercent < self.Menu.Heal.HealSelf:Value() / 100 then
-        Control.CastSpell(HK_W, myHero.pos)
+        Control.CastSpell(_G.L9Engine:GetKeybind("W"), myHero.pos)
     end
 end
 
@@ -289,7 +289,7 @@ function L9Nami:AutoBuff()
     end
     
     if targetAlly then
-        Control.CastSpell(HK_E, targetAlly.pos)
+        Control.CastSpell(_G.L9Engine:GetKeybind("E"), targetAlly.pos)
     end
 end
 
@@ -301,23 +301,23 @@ function L9Nami:Combo()
         if myHero.pos:DistanceTo(target.pos) <= SPELL_RANGE.R and self.Menu.Combo.UseR:Value() and _G.L9Engine:IsSpellReady(_R) then
             local prediction, hitChance = GetPrediction(target, "R")
             if prediction and hitChance >= self.Menu.Combo.RHitChance:Value() then
-                Control.CastSpell(HK_R, Vector(prediction.x, myHero.pos.y, prediction.z))
+                Control.CastSpell(_G.L9Engine:GetKeybind("R"), Vector(prediction.x, myHero.pos.y, prediction.z))
             end
         end
         
         if myHero.pos:DistanceTo(target.pos) <= SPELL_RANGE.Q and self.Menu.Combo.UseQ:Value() and _G.L9Engine:IsSpellReady(_Q) then
             local prediction, hitChance = GetPrediction(target, "Q")
             if prediction and hitChance >= self.Menu.Combo.QHitChance:Value() then
-                Control.CastSpell(HK_Q, Vector(prediction.x, myHero.pos.y, prediction.z))
+                Control.CastSpell(_G.L9Engine:GetKeybind("Q"), Vector(prediction.x, myHero.pos.y, prediction.z))
             end
         end
         
         if myHero.pos:DistanceTo(target.pos) <= SPELL_RANGE.W and self.Menu.Combo.UseW:Value() and _G.L9Engine:IsSpellReady(_W) then
-            Control.CastSpell(HK_W, target.pos)
+            Control.CastSpell(_G.L9Engine:GetKeybind("W"), target.pos)
         end
         
         if myHero.pos:DistanceTo(target.pos) <= SPELL_RANGE.E and self.Menu.Combo.UseE:Value() and _G.L9Engine:IsSpellReady(_E) then
-            Control.CastSpell(HK_E, myHero.pos)
+            Control.CastSpell(_G.L9Engine:GetKeybind("E"), myHero.pos)
         end
     end
 end
@@ -331,12 +331,12 @@ function L9Nami:Harass()
         if myHero.pos:DistanceTo(target.pos) <= SPELL_RANGE.Q and self.Menu.Harass.UseQ:Value() and _G.L9Engine:IsSpellReady(_Q) then
             local prediction, hitChance = GetPrediction(target, "Q")
             if prediction and hitChance >= self.Menu.Harass.QHitChance:Value() then
-                Control.CastSpell(HK_Q, Vector(prediction.x, myHero.pos.y, prediction.z))
+                Control.CastSpell(_G.L9Engine:GetKeybind("Q"), Vector(prediction.x, myHero.pos.y, prediction.z))
             end
         end
         
         if myHero.pos:DistanceTo(target.pos) <= SPELL_RANGE.W and self.Menu.Harass.UseW:Value() and _G.L9Engine:IsSpellReady(_W) then
-            Control.CastSpell(HK_W, target.pos)
+            Control.CastSpell(_G.L9Engine:GetKeybind("W"), target.pos)
         end
     end
 end
@@ -348,14 +348,14 @@ function L9Nami:LaneClear()
         if myHero.pos:DistanceTo(minion.pos) <= SPELL_RANGE.W and minion.team == TEAM_ENEMY and _G.L9Engine:IsValidEnemy(minion) and myHero.mana/myHero.maxMana >= self.Menu.Clear.Mana:Value() / 100 then
             
             if myHero.pos:DistanceTo(minion.pos) <= SPELL_RANGE.W and _G.L9Engine:IsSpellReady(_W) and self.Menu.Clear.UseW:Value() then
-                Control.CastSpell(HK_W, minion.pos)
+                Control.CastSpell(_G.L9Engine:GetKeybind("W"), minion.pos)
                 break
             end
             
             if myHero.pos:DistanceTo(minion.pos) <= SPELL_RANGE.Q and _G.L9Engine:IsSpellReady(_Q) and self.Menu.Clear.UseQ:Value() then
                 local prediction, hitChance = GetPrediction(minion, "Q")
                 if prediction and hitChance >= 2 then
-                    Control.CastSpell(HK_Q, Vector(prediction.x, myHero.pos.y, prediction.z))
+                    Control.CastSpell(_G.L9Engine:GetKeybind("Q"), Vector(prediction.x, myHero.pos.y, prediction.z))
                     break
                 end
             end
@@ -373,7 +373,7 @@ function L9Nami:KillSteal()
             if target.health <= RDmg then
                 local prediction, hitChance = GetPrediction(target, "R")
                 if prediction and hitChance >= 2 then
-                    Control.CastSpell(HK_R, Vector(prediction.x, myHero.pos.y, prediction.z))
+                    Control.CastSpell(_G.L9Engine:GetKeybind("R"), Vector(prediction.x, myHero.pos.y, prediction.z))
                 end
             end
         end
@@ -381,7 +381,7 @@ function L9Nami:KillSteal()
         if self.Menu.ks.UseW:Value() and _G.L9Engine:IsSpellReady(_W) and myHero.pos:DistanceTo(target.pos) <= SPELL_RANGE.W then
             local WDmg = getdmg("W", target, myHero) or 0
             if target.health <= WDmg then
-                Control.CastSpell(HK_W, target.pos)
+                Control.CastSpell(_G.L9Engine:GetKeybind("W"), target.pos)
             end
         end
         
@@ -390,7 +390,7 @@ function L9Nami:KillSteal()
             if target.health <= QDmg then
                 local prediction, hitChance = GetPrediction(target, "Q")
                 if prediction and hitChance >= 2 then
-                    Control.CastSpell(HK_Q, Vector(prediction.x, myHero.pos.y, prediction.z))
+                    Control.CastSpell(_G.L9Engine:GetKeybind("Q"), Vector(prediction.x, myHero.pos.y, prediction.z))
                 end
             end
         end
@@ -432,7 +432,7 @@ function L9Nami:Draw()
                     color = Draw.Color(255, 255, 255, 0) -- Jaune
                 end
                 
-                local textPos = Renderer.WorldToScreen(ally.pos)
+                local textPos = Draw.WorldToScreen(ally.pos)
                 if textPos then
                     Draw.Text(ally.charName .. ": " .. math.floor(healthPercent * 100) .. "%", 15, textPos.x - 40, textPos.y + yOffset, color)
                     yOffset = yOffset + 20
