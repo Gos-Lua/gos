@@ -342,37 +342,43 @@ function L9Rengar:TryPassiveLogic(target)
 	
 	local targetHp = (target.health / target.maxHealth) * 100
 	
-	-- Priorité Q Passive (One Shot)
-	if self.Menu.passive.useQPassive:Value() and targetHp <= self.Menu.passive.qHp:Value() then
-		if self:GetQDamage(target) >= target.health then
-			self:TryCastQ(target)
-			return
-		end
-	end
-	
-	-- Priorité W Passive (Stun)
-	if self.Menu.passive.useWPassive:Value() and self:IsStunned() then
-		self:TryCastW(target)
-		return
-	end
-	
-	-- Priorité E Passive (Fleeing)
-	if self.Menu.passive.useEPassive:Value() and self:IsTargetFleeing(target) then
-		local distance = self:Distance(myHero.pos, target.pos)
-		if distance > 400 and distance < 800 then
-			self:TryCastEPassive(target)
-			return
-		end
-	end
-	
-	-- Si aucune condition passive n'est remplie, utiliser selon la priorité du menu
+	-- Utiliser d'abord la priorité du menu
 	local priority = self.Menu.passive.priority:Value()
+	
+	-- Vérifier les conditions passives seulement si elles sont activées
 	if priority == 1 then -- Q
+		-- Q Passive (One Shot) en priorité
+		if self.Menu.passive.useQPassive:Value() and targetHp <= self.Menu.passive.qHp:Value() then
+			if self:GetQDamage(target) >= target.health then
+				self:TryCastQ(target)
+				return
+			end
+		end
+		-- Sinon Q normal
 		self:TryCastQ(target)
+		
 	elseif priority == 2 then -- W
+		-- W Passive (Stun) en priorité
+		if self.Menu.passive.useWPassive:Value() and self:IsStunned() then
+			self:TryCastW(target)
+			return
+		end
+		-- Sinon W normal
 		self:TryCastW(target)
-	elseif priority == 3 and self.Menu.passive.useEPassive:Value() then -- E seulement si activé
-		self:TryCastEPassive(target)
+		
+	elseif priority == 3 then -- E
+		-- E Passive (Fleeing) en priorité seulement si activé
+		if self.Menu.passive.useEPassive:Value() and self:IsTargetFleeing(target) then
+			local distance = self:Distance(myHero.pos, target.pos)
+			if distance > 400 and distance < 800 then
+				self:TryCastEPassive(target)
+				return
+			end
+		end
+		-- Sinon E normal seulement si activé
+		if self.Menu.passive.useEPassive:Value() then
+			self:TryCastEPassive(target)
+		end
 	end
 end
 
