@@ -345,6 +345,19 @@ function L9Rengar:TryPassiveLogic(target)
 	-- Utiliser d'abord la priorité du menu
 	local priority = self.Menu.passive.priority:Value()
 	
+	-- Ne pas lancer E si on est sous R et pas dans un buisson
+	if self:IsUnderR() and not self:IsInBush() and priority == 3 then
+		-- Si priorité E mais sous R et pas dans buisson, utiliser Q à la place
+		if self.Menu.passive.useQPassive:Value() and targetHp <= self.Menu.passive.qHp:Value() then
+			if self:GetQDamage(target) >= target.health then
+				self:TryCastQ(target)
+				return
+			end
+		end
+		self:TryCastQ(target)
+		return
+	end
+	
 	-- Vérifier les conditions passives seulement si elles sont activées
 	if priority == 1 then -- Q
 		-- Q Passive (One Shot) en priorité
@@ -404,6 +417,7 @@ function L9Rengar:DoCombo()
 	local target = self:SelectTarget(1000)
 	if not target then return end
 	
+	-- Vérifier d'abord si on peut sauter
 	if self:CanJump(target) and self.Menu.misc.autoJump:Value() and not self:IsJumping() then
 		self:StartJump(target)
 	end
@@ -411,17 +425,30 @@ function L9Rengar:DoCombo()
 	if self:IsJumping() and not self.JumpComboExecuted then
 		self:ExecuteJumpCombo(target)
 	elseif not self:IsJumping() then
-		-- Vérifier d'abord si on a 4 stacks de férocité
-		local ferocity = self:GetFerocity()
-		if ferocity >= 4 then
-			-- Utiliser la logique passive avec 4 stacks
-			self:TryPassiveLogic(target)
+		-- Ne pas lancer E si on est sous R et pas dans un buisson
+		if self:IsUnderR() and not self:IsInBush() then
+			-- Sous R et pas dans buisson = ne pas lancer E
+			local ferocity = self:GetFerocity()
+			if ferocity >= 4 then
+				self:TryPassiveLogic(target)
+			else
+				-- Combo sans E pendant le R
+				if self.Menu.combo.useW:Value() then self:TryCastW(target) end
+				if self.Menu.combo.useQ:Value() then self:TryCastQ(target) end
+				if self.Menu.combo.useR:Value() then self:TryCastR(target) end
+			end
 		else
-			-- Combo normal sans férocité
-			if self.Menu.combo.useE:Value() then self:TryCastE(target) end
-			if self.Menu.combo.useW:Value() then self:TryCastW(target) end
-			if self.Menu.combo.useQ:Value() then self:TryCastQ(target) end
-			if self.Menu.combo.useR:Value() then self:TryCastR(target) end
+			-- Normal ou dans buisson = combo complet
+			local ferocity = self:GetFerocity()
+			if ferocity >= 4 then
+				self:TryPassiveLogic(target)
+			else
+				-- Combo normal avec E
+				if self.Menu.combo.useE:Value() then self:TryCastE(target) end
+				if self.Menu.combo.useW:Value() then self:TryCastW(target) end
+				if self.Menu.combo.useQ:Value() then self:TryCastQ(target) end
+				if self.Menu.combo.useR:Value() then self:TryCastR(target) end
+			end
 		end
 	end
 end
