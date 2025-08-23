@@ -1,15 +1,12 @@
--- L9Engine compatibility guard
 if _G.__L9_ENGINE_THRESH_LOADED then return end
 _G.__L9_ENGINE_THRESH_LOADED = true
 
 local Version = 1.0
 local Name = "L9Thresh"
 
--- Hero validation
 local Heroes = {"Thresh"}
 if not table.contains(Heroes, myHero.charName) then return end
 
--- Load prediction and damage systems
 require("DepressivePrediction")
 require("DamageLib")
 local PredictionLoaded = false
@@ -21,7 +18,6 @@ DelayAction(function()
     end
 end, 1.0)
 
--- Check if prediction system is working
 local function CheckPredictionSystem()
     if not PredictionLoaded or not _G.DepressivePrediction then
         return false
@@ -34,7 +30,6 @@ local function CheckPredictionSystem()
     return true
 end
 
--- Spell constants
 local SPELL_RANGE = {
     Q = 1075,
     W = 950,
@@ -63,7 +58,6 @@ local SPELL_RADIUS = {
     R = 100
 }
 
--- Get prediction using DepressivePrediction
 local function GetPrediction(target, spell)
     if not target or not target.valid then return nil, 0 end
     
@@ -166,17 +160,16 @@ function L9Thresh:Combo()
     if target == nil then return end
     
     if _G.L9Engine:IsValidEnemy(target) then
-        -- R Logic (The Box)
         if myHero.pos:DistanceTo(target.pos) <= 420 and self.Menu.Combo.UseR:Value() and _G.L9Engine:IsSpellReady(_R) then
             Control.CastSpell(HK_R, target.pos)
         end
         
-        -- E Logic (Flay)
         if myHero.pos:DistanceTo(target.pos) <= 400 and self.Menu.Combo.UseE:Value() and _G.L9Engine:IsSpellReady(_E) then
-            Control.CastSpell(HK_E, target.pos)
+            local direction = (myHero.pos - target.pos):Normalized()
+            local castPos = myHero.pos + direction * 200
+            Control.CastSpell(HK_E, castPos)
         end
         
-        -- Q Logic (Death Sentence)
         if myHero.pos:DistanceTo(target.pos) <= 1075 and self.Menu.Combo.UseQ:Value() and _G.L9Engine:IsSpellReady(_Q) then
             local prediction, hitChance = GetPrediction(target, "Q")
             if prediction and hitChance >= self.Menu.Combo.QHitChance:Value() then
@@ -184,10 +177,7 @@ function L9Thresh:Combo()
             end
         end
         
-        -- W Logic (Dark Passage) - for allies
         if self.Menu.Combo.UseW:Value() and _G.L9Engine:IsSpellReady(_W) then
-            -- Logic for casting W on allies can be added here
-            -- This is a simplified version
         end
     end
 end
@@ -198,7 +188,6 @@ function L9Thresh:Harass()
     
     if _G.L9Engine:IsValidEnemy(target) and myHero.mana/myHero.maxMana >= self.Menu.Harass.Mana:Value() / 100 then
         
-        -- Q Logic (Death Sentence)
         if myHero.pos:DistanceTo(target.pos) <= 1075 and self.Menu.Harass.UseQ:Value() and _G.L9Engine:IsSpellReady(_Q) then
             local prediction, hitChance = GetPrediction(target, "Q")
             if prediction and hitChance >= self.Menu.Harass.QHitChance:Value() then
@@ -206,9 +195,10 @@ function L9Thresh:Harass()
             end
         end
         
-        -- E Logic (Flay)
         if myHero.pos:DistanceTo(target.pos) <= 400 and self.Menu.Harass.UseE:Value() and _G.L9Engine:IsSpellReady(_E) then
-            Control.CastSpell(HK_E, target.pos)
+            local direction = (myHero.pos - target.pos):Normalized()
+            local castPos = myHero.pos + direction * 200
+            Control.CastSpell(HK_E, castPos)
         end
     end
 end
@@ -219,13 +209,13 @@ function L9Thresh:LaneClear()
         
         if myHero.pos:DistanceTo(minion.pos) <= 400 and minion.team == TEAM_ENEMY and _G.L9Engine:IsValidEnemy(minion) and myHero.mana/myHero.maxMana >= self.Menu.Clear.Mana:Value() / 100 then
             
-            -- E Logic (Flay)
             if myHero.pos:DistanceTo(minion.pos) <= 400 and _G.L9Engine:IsSpellReady(_E) and self.Menu.Clear.UseE:Value() then
-                Control.CastSpell(HK_E, minion.pos)
+                local direction = (myHero.pos - minion.pos):Normalized()
+                local castPos = myHero.pos + direction * 200
+                Control.CastSpell(HK_E, castPos)
                 break
             end
             
-            -- Q Logic (Death Sentence)
             if myHero.pos:DistanceTo(minion.pos) <= 1075 and _G.L9Engine:IsSpellReady(_Q) and self.Menu.Clear.UseQ:Value() then
                 local prediction, hitChance = GetPrediction(minion, "Q")
                 if prediction and hitChance >= 2 then
@@ -243,13 +233,13 @@ function L9Thresh:JungleClear()
         
         if myHero.pos:DistanceTo(minion.pos) <= 400 and minion.team == TEAM_JUNGLE and _G.L9Engine:IsValidEnemy(minion) and myHero.mana/myHero.maxMana >= self.Menu.JClear.Mana:Value() / 100 then
             
-            -- E Logic (Flay)
             if myHero.pos:DistanceTo(minion.pos) <= 400 and _G.L9Engine:IsSpellReady(_E) and self.Menu.JClear.UseE:Value() then
-                Control.CastSpell(HK_E, minion.pos)
+                local direction = (myHero.pos - minion.pos):Normalized()
+                local castPos = myHero.pos + direction * 200
+                Control.CastSpell(HK_E, castPos)
                 break
             end
             
-            -- Q Logic (Death Sentence)
             if myHero.pos:DistanceTo(minion.pos) <= 1075 and _G.L9Engine:IsSpellReady(_Q) and self.Menu.JClear.UseQ:Value() then
                 local prediction, hitChance = GetPrediction(minion, "Q")
                 if prediction and hitChance >= 2 then
@@ -266,7 +256,6 @@ function L9Thresh:KillSteal()
     if target == nil then return end
     
     if _G.L9Engine:IsValidEnemy(target) then
-        -- R KillSteal
         if self.Menu.ks.UseR:Value() and _G.L9Engine:IsSpellReady(_R) and myHero.pos:DistanceTo(target.pos) <= 420 then
             local RDmg = getdmg("R", target, myHero) or 0
             if target.health <= RDmg then
@@ -274,15 +263,15 @@ function L9Thresh:KillSteal()
             end
         end
         
-        -- E KillSteal
         if self.Menu.ks.UseE:Value() and _G.L9Engine:IsSpellReady(_E) and myHero.pos:DistanceTo(target.pos) <= 400 then
             local EDmg = getdmg("E", target, myHero) or 0
             if target.health <= EDmg then
-                Control.CastSpell(HK_E, target.pos)
+                local direction = (myHero.pos - target.pos):Normalized()
+                local castPos = myHero.pos + direction * 200
+                Control.CastSpell(HK_E, castPos)
             end
         end
         
-        -- Q KillSteal
         if self.Menu.ks.UseQ:Value() and _G.L9Engine:IsSpellReady(_Q) and myHero.pos:DistanceTo(target.pos) <= 1075 then
             local QDmg = getdmg("Q", target, myHero) or 0
             if target.health <= QDmg then
