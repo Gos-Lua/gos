@@ -78,11 +78,23 @@ function L9Rengar:IsInBush()
 	return false
 end
 
+function L9Rengar:IsUnderR()
+	for i = 0, myHero.buffCount - 1 do
+		local buff = myHero:GetBuff(i)
+		if buff and buff.valid and buff.name:lower():find("rengarr") then
+			return true
+		end
+	end
+	return false
+end
+
 function L9Rengar:DebugFerocity()
 	if self.Menu.debug.showFerocity:Value() then
 		local ferocity = self:GetFerocity()
 		local mana = myHero.mana or 0
-		print("[L9Rengar] Férocité détectée: " .. ferocity .. " (mana: " .. mana .. ")")
+		local underR = self:IsUnderR()
+		local inBush = self:IsInBush()
+		print("[L9Rengar] Férocité: " .. ferocity .. " | Mana: " .. mana .. " | R: " .. (underR and "OUI" or "NON") .. " | Bush: " .. (inBush and "OUI" or "NON"))
 	end
 end
 
@@ -219,6 +231,7 @@ function L9Rengar:LoadMenu()
 	self.Menu.passive:MenuElement({id = "useWPassive", name = "W Passive (Stun)", value = true})
 	self.Menu.passive:MenuElement({id = "useEPassive", name = "E Passive (Fleeing)", value = false})
 	self.Menu.passive:MenuElement({id = "qHp", name = "Q Passive HP%", value = 30, min = 10, max = 50, step = 5})
+	self.Menu.passive:MenuElement({id = "priority", name = "Priorité Férocité", value = 1, drop = {"Q", "W", "E"}})
 
 	self.Menu:MenuElement({type = _G.MENU, id = "misc", name = "Misc"})
 	self.Menu.misc:MenuElement({id = "autoJump", name = "Auto Jump", value = true})
@@ -298,6 +311,9 @@ function L9Rengar:TryCastE(target)
 	if not self:Ready(_E) then return end
 	if not target then return end
 	
+	-- Ne pas lancer E pendant le R sauf si on saute
+	if self:IsUnderR() and not self:IsJumping() then return end
+	
 	local distance = self:Distance(myHero.pos, target.pos)
 	if distance > self.E.range and not self:IsJumping() then return end
 	
@@ -326,6 +342,7 @@ function L9Rengar:TryPassiveLogic(target)
 	
 	local targetHp = (target.health / target.maxHealth) * 100
 	
+	-- Priorité Q Passive (One Shot)
 	if self.Menu.passive.useQPassive:Value() and targetHp <= self.Menu.passive.qHp:Value() then
 		if self:GetQDamage(target) >= target.health then
 			self:TryCastQ(target)
@@ -333,11 +350,13 @@ function L9Rengar:TryPassiveLogic(target)
 		end
 	end
 	
+	-- Priorité W Passive (Stun)
 	if self.Menu.passive.useWPassive:Value() and self:IsStunned() then
 		self:TryCastW(target)
 		return
 	end
 	
+	-- Priorité E Passive (Fleeing)
 	if self.Menu.passive.useEPassive:Value() and self:IsTargetFleeing(target) then
 		local distance = self:Distance(myHero.pos, target.pos)
 		if distance > 400 and distance < 800 then
@@ -345,12 +364,25 @@ function L9Rengar:TryPassiveLogic(target)
 			return
 		end
 	end
+	
+	-- Si aucune condition passive n'est remplie, utiliser selon la priorité du menu
+	local priority = self.Menu.passive.priority:Value()
+	if priority == 1 then -- Q
+		self:TryCastQ(target)
+	elseif priority == 2 then -- W
+		self:TryCastW(target)
+	elseif priority == 3 then -- E
+		self:TryCastEPassive(target)
+	end
 end
 
 function L9Rengar:TryCastEPassive(target)
 	if not self:Ready(_E) then return end
 	if not target then return end
 	if not self.Menu.passive.useEPassive:Value() then return end
+	
+	-- Ne pas lancer E pendant le R sauf si on saute
+	if self:IsUnderR() and not self:IsJumping() then return end
 	
 	local distance = self:Distance(myHero.pos, target.pos)
 	if distance > self.E.range and not self:IsJumping() then return end
@@ -373,13 +405,19 @@ function L9Rengar:DoCombo()
 	if self:IsJumping() and not self.JumpComboExecuted then
 		self:ExecuteJumpCombo(target)
 	elseif not self:IsJumping() then
-		if self.Menu.combo.useE:Value() then self:TryCastE(target) end
-		if self.Menu.combo.useW:Value() then self:TryCastW(target) end
-		if self.Menu.combo.useQ:Value() then self:TryCastQ(target) end
-		if self.Menu.combo.useR:Value() then self:TryCastR(target) end
+		-- Vérifier d'abord si on a 4 stacks de férocité
+		local ferocity = self:GetFerocity()
+		if ferocity >= 4 then
+			-- Utiliser la logique passive avec 4 stacks
+			self:TryPassiveLogic(target)
+		else
+			-- Combo normal sans férocité
+			if self.Menu.combo.useE:Value() then self:TryCastE(target) end
+			if self.Menu.combo.useW:Value() then self:TryCastW(target) end
+			if self.Menu.combo.useQ:Value() then self:TryCastQ(target) end
+			if self.Menu.combo.useR:Value() then self:TryCastR(target) end
+		end
 	end
-	
-	self:TryPassiveLogic(target)
 end
 
 function L9Rengar:ExecuteJumpCombo(target)
