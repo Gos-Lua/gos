@@ -15,7 +15,8 @@ local CHAMPION_SCRIPTS = {
     "MasterYi.lua",
     "Thresh.lua",
     "Kayn.lua",
-    "Rengar.lua"
+    "Rengar.lua",
+    "Nami.lua"
 }
 
 local needed = {
@@ -88,7 +89,7 @@ local function TryLoadCore()
     if SafeDofile(CORE_FILE) then
         if _G.L9EngineLoaded then
             print("[L9Engine] Engine original chargé avec succès")
-            print("[L9Engine] Champions supportés: Sylas, Pyke, Aurora, Draven, XinZhao, MasterYi, Thresh, Kayn, Rengar")
+            print("[L9Engine] Champions supportés: Sylas, Pyke, Aurora, Draven, XinZhao, MasterYi, Thresh, Kayn, Rengar, Nami")
         end
         Callback.Del("Tick", TryLoadCore)
     end
