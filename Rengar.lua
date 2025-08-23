@@ -18,6 +18,8 @@ function L9Rengar:__init()
 	self.LastFerocity = 0
 	self.JumpTarget = nil
 	self.JumpStartTime = 0
+	self.IsJumping = false
+	self.JumpComboExecuted = false
 	
 	local ok, err = pcall(function() require("DepressivePrediction") end)
 	self.PredictionLoaded = false
@@ -89,6 +91,24 @@ function L9Rengar:CanJump(target)
 	return distance <= self.JumpRange and self:IsInBush()
 end
 
+function L9Rengar:IsJumping()
+	return self.IsJumping
+end
+
+function L9Rengar:StartJump(target)
+	if not target then return end
+	self.JumpTarget = target
+	self.JumpStartTime = Game.Timer()
+	self.IsJumping = true
+	self.JumpComboExecuted = false
+end
+
+function L9Rengar:EndJump()
+	self.IsJumping = false
+	self.JumpTarget = nil
+	self.JumpComboExecuted = false
+end
+
 function L9Rengar:IsStunned()
 	local buffData = _G.L9Engine:GetUnitBuff(myHero, 5)
 	return buffData ~= nil
@@ -96,11 +116,21 @@ end
 
 function L9Rengar:IsTargetFleeing(target)
 	if not target then return false end
-	local myPos = myHero.pos
-	local targetPos = target.pos
-	local targetDirection = (targetPos - myPos):Normalized()
-	local targetMovement = target.pos - target.pos
-	return targetMovement:Dot(targetDirection) > 0
+	
+	local distance = self:Distance(myHero.pos, target.pos)
+	if distance > 600 then return false end
+	
+	if target.moveSpeed and target.moveSpeed > 300 then
+		local targetDirection = (target.pos - myHero.pos):Normalized()
+		local targetMovement = target.pos - target.pos
+		
+		if targetMovement:Length() > 30 then
+			local dotProduct = targetMovement:Normalized():Dot(targetDirection)
+			return dotProduct > 0.5
+		end
+	end
+	
+	return false
 end
 
 function L9Rengar:GetQDamage(target)
@@ -186,7 +216,7 @@ function L9Rengar:LoadMenu()
 	self.Menu:MenuElement({type = _G.MENU, id = "passive", name = "Passive Logic"})
 	self.Menu.passive:MenuElement({id = "useQPassive", name = "Q Passive (One Shot)", value = true})
 	self.Menu.passive:MenuElement({id = "useWPassive", name = "W Passive (Stun)", value = true})
-	self.Menu.passive:MenuElement({id = "useEPassive", name = "E Passive (Fleeing)", value = true})
+	self.Menu.passive:MenuElement({id = "useEPassive", name = "E Passive (Fleeing)", value = false})
 	self.Menu.passive:MenuElement({id = "qHp", name = "Q Passive HP%", value = 30, min = 10, max = 50, step = 5})
 
 	self.Menu:MenuElement({type = _G.MENU, id = "misc", name = "Misc"})
@@ -241,7 +271,8 @@ function L9Rengar:TryCastQ(target)
 	if not self:Ready(_Q) then return end
 	if not target then return end
 	
-	if self:Distance(myHero.pos, target.pos) <= 150 then
+	local distance = self:Distance(myHero.pos, target.pos)
+	if distance <= 150 or self:IsJumping() then
 		Control.CastSpell(HK_Q)
 		if self.Menu.misc.resetAA:Value() then
 			Control.Attack(target)
@@ -253,7 +284,8 @@ function L9Rengar:TryCastW(target)
 	if not self:Ready(_W) then return end
 	if not target then return end
 	
-	if self:Distance(myHero.pos, target.pos) <= 500 then
+	local distance = self:Distance(myHero.pos, target.pos)
+	if distance <= 500 or self:IsJumping() then
 		Control.CastSpell(HK_W)
 	end
 end
@@ -262,7 +294,8 @@ function L9Rengar:TryCastE(target)
 	if not self:Ready(_E) then return end
 	if not target then return end
 	
-	if self:Distance(myHero.pos, target.pos) > self.E.range then return end
+	local distance = self:Distance(myHero.pos, target.pos)
+	if distance > self.E.range and not self:IsJumping() then return end
 	
 	local pos2D, hc = self:PredictCastPos(target, "E")
 	if pos2D and hc >= self.Menu.combo.minHC:Value() then
@@ -275,7 +308,8 @@ function L9Rengar:TryCastR(target)
 	if not self:Ready(_R) then return end
 	if not target then return end
 	
-	if self:Distance(myHero.pos, target.pos) <= 1000 then
+	local distance = self:Distance(myHero.pos, target.pos)
+	if distance <= 1000 or self:IsJumping() then
 		Control.CastSpell(HK_R)
 	end
 end
@@ -301,8 +335,11 @@ function L9Rengar:TryPassiveLogic(target)
 	end
 	
 	if self.Menu.passive.useEPassive:Value() and self:IsTargetFleeing(target) then
-		self:TryCastE(target)
-		return
+		local distance = self:Distance(myHero.pos, target.pos)
+		if distance > 400 and distance < 800 then
+			self:TryCastE(target)
+			return
+		end
 	end
 	
 	self:TryCastQ(target)
@@ -312,17 +349,39 @@ function L9Rengar:DoCombo()
 	local target = self:SelectTarget(1000)
 	if not target then return end
 	
-	if self:CanJump(target) and self.Menu.misc.autoJump:Value() then
-		self.JumpTarget = target
-		self.JumpStartTime = Game.Timer()
+	if self:CanJump(target) and self.Menu.misc.autoJump:Value() and not self:IsJumping() then
+		self:StartJump(target)
 	end
 	
-	if self.Menu.combo.useE:Value() then self:TryCastE(target) end
-	if self.Menu.combo.useW:Value() then self:TryCastW(target) end
-	if self.Menu.combo.useQ:Value() then self:TryCastQ(target) end
-	if self.Menu.combo.useR:Value() then self:TryCastR(target) end
+	if self:IsJumping() and not self.JumpComboExecuted then
+		self:ExecuteJumpCombo(target)
+	elseif not self:IsJumping() then
+		if self.Menu.combo.useE:Value() then self:TryCastE(target) end
+		if self.Menu.combo.useW:Value() then self:TryCastW(target) end
+		if self.Menu.combo.useQ:Value() then self:TryCastQ(target) end
+		if self.Menu.combo.useR:Value() then self:TryCastR(target) end
+	end
 	
 	self:TryPassiveLogic(target)
+end
+
+function L9Rengar:ExecuteJumpCombo(target)
+	if not target or not self:IsJumping() then return end
+	
+	local jumpDuration = Game.Timer() - self.JumpStartTime
+	
+	if jumpDuration > 0.1 and not self.JumpComboExecuted then
+		if self.Menu.combo.useQ:Value() then self:TryCastQ(target) end
+		if self.Menu.combo.useW:Value() then self:TryCastW(target) end
+		if self.Menu.combo.useE:Value() then self:TryCastE(target) end
+		if self.Menu.combo.useR:Value() then self:TryCastR(target) end
+		
+		self.JumpComboExecuted = true
+	end
+	
+	if jumpDuration > 1.0 then
+		self:EndJump()
+	end
 end
 
 function L9Rengar:DoHarass()
@@ -343,6 +402,18 @@ function L9Rengar:Tick()
 	if self.Menu.misc.autoW:Value() and self:IsStunned() then
 		local target = self:SelectTarget(500)
 		if target then self:TryCastW(target) end
+	end
+	
+	if self:IsJumping() and self.JumpTarget then
+		local target = self.JumpTarget
+		if not target.valid or target.dead then
+			self:EndJump()
+		else
+			local distance = self:Distance(myHero.pos, target.pos)
+			if distance > 200 then
+				self:EndJump()
+			end
+		end
 	end
 	
 	local currentMode = _G.L9Engine:GetCurrentMode()
@@ -374,6 +445,10 @@ function L9Rengar:Draw()
 		if Draw.Text then
 			Draw.Text(ferocityText, 14, 40, 400, ferocityColor)
 		end
+	end
+	
+	if self:IsJumping() and Draw.Text then
+		Draw.Text("JUMPING!", 20, 40, 420, Draw.Color(255, 255, 0, 0))
 	end
 end
 
