@@ -5,7 +5,7 @@ class "L9Engine"
 
 local GITHUB_RAW_URL = "https://raw.githubusercontent.com/Gos-Lua/gos/main/"
 local SUPPORTED_CHAMPIONS = {
-    "Sylas", "Pyke", "Aurora", "Draven", "XinZhao", "MasterYi", "Thresh"
+    "Sylas", "Pyke", "Aurora", "Draven", "XinZhao", "MasterYi", "Thresh", "Kayn", "Rengar"
 }
 
 function L9Engine:__init()
