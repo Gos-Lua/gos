@@ -2,6 +2,8 @@ local Version = 1.0
 local Name = "L9Kayn"
 
 if myHero.charName ~= "Kayn" then return end
+if _G.L9KaynLoaded then return end
+_G.L9KaynLoaded = true
 
 class "L9Kayn"
 
