@@ -337,12 +337,25 @@ function L9Rengar:TryPassiveLogic(target)
 	if self.Menu.passive.useEPassive:Value() and self:IsTargetFleeing(target) then
 		local distance = self:Distance(myHero.pos, target.pos)
 		if distance > 400 and distance < 800 then
-			self:TryCastE(target)
+			self:TryCastEPassive(target)
 			return
 		end
 	end
+end
+
+function L9Rengar:TryCastEPassive(target)
+	if not self:Ready(_E) then return end
+	if not target then return end
+	if not self.Menu.passive.useEPassive:Value() then return end
 	
-	self:TryCastQ(target)
+	local distance = self:Distance(myHero.pos, target.pos)
+	if distance > self.E.range and not self:IsJumping() then return end
+	
+	local pos2D, hc = self:PredictCastPos(target, "E")
+	if pos2D and hc >= self.Menu.combo.minHC:Value() then
+		local castPos = Vector(pos2D.x, myHero.pos.y, pos2D.z)
+		Control.CastSpell(HK_E, castPos)
+	end
 end
 
 function L9Rengar:DoCombo()
