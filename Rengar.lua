@@ -67,11 +67,21 @@ function L9Rengar:GetFerocity()
 	local ferocity = 0
 	for i = 0, myHero.buffCount - 1 do
 		local buff = myHero:GetBuff(i)
-		if buff and buff.valid and buff.name:lower():find("rengarferocity") then
-			ferocity = buff.count or 0
-			break
+		if buff and buff.valid then
+			local buffName = buff.name:lower()
+			-- Vérifier plusieurs noms possibles pour la férocité
+			if buffName:find("rengarferocity") or buffName:find("ferocity") or buffName:find("empowered") then
+				ferocity = buff.count or 0
+				break
+			end
 		end
 	end
+	
+	-- Fallback: utiliser la ressource de Rengar (la férocité est stockée comme ressource)
+	if ferocity == 0 then
+		ferocity = myHero.par or 0
+	end
+	
 	return ferocity
 end
 
@@ -83,6 +93,22 @@ function L9Rengar:IsInBush()
 		end
 	end
 	return false
+end
+
+function L9Rengar:DebugFerocity()
+	if self.Menu.debug.showFerocity:Value() then
+		local ferocity = self:GetFerocity()
+		local par = myHero.par or 0
+		print("[L9Rengar] Férocité détectée: " .. ferocity .. " (par: " .. par .. ")")
+		
+		-- Afficher tous les buffs pour debug
+		for i = 0, myHero.buffCount - 1 do
+			local buff = myHero:GetBuff(i)
+			if buff and buff.valid then
+				print("[L9Rengar] Buff: " .. buff.name .. " (count: " .. (buff.count or 0) .. ")")
+			end
+		end
+	end
 end
 
 function L9Rengar:CanJump(target)
@@ -229,6 +255,9 @@ function L9Rengar:LoadMenu()
 	self.Menu.draw:MenuElement({id = "e", name = "Draw E", value = true})
 	self.Menu.draw:MenuElement({id = "jump", name = "Draw Jump Range", value = true})
 	self.Menu.draw:MenuElement({id = "ferocity", name = "Draw Ferocity", value = true})
+	
+	self.Menu:MenuElement({type = _G.MENU, id = "debug", name = "Debug"})
+	self.Menu.debug:MenuElement({id = "showFerocity", name = "Afficher Férocité", value = false})
 end
 
 function L9Rengar:BuildKeyMap()
@@ -411,6 +440,7 @@ function L9Rengar:Tick()
 	if myHero.dead or Game.IsChatOpen() then return end
 	
 	self.Ferocity = self:GetFerocity()
+	self:DebugFerocity()
 	
 	if self.Menu.misc.autoW:Value() and self:IsStunned() then
 		local target = self:SelectTarget(500)
