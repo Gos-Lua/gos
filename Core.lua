@@ -130,18 +130,6 @@ function L9Engine:DownloadFile(url, path, callback)
     end)
 end
 
-function L9Engine:ForceUpdateChampion(championName)
-    self:LogDebug("Mise à jour forcée pour " .. championName)
-    -- Force le téléchargement du champion
-    local fileName = string.format("Champions/%s.lua", championName)
-    local champPath = LOCAL_PATH .. fileName
-    self:DownloadFile(GITHUB_RAW_URL .. "Common/L9Engine/" .. fileName, champPath)
-end
-
-function L9Engine:SetupDownloadSystem()
-    -- Le système de téléchargement est maintenant géré par StartAutoUpdateSystem
-end
-
 function L9Engine:SetupKeybindSystem()
     self:UpdateKeybindMap()
 end
@@ -157,6 +145,34 @@ function L9Engine:UpdateKeybindMap()
     }
     
     self:LogDebug("Keybind map updated: " .. (isAZERTY and "AZERTY" or "QWERTY"))
+end
+
+function L9Engine:SetupDownloadSystem()
+    if self.Menu.config.autoUpdate:Value() then
+        self:QueueChampionDownload(myHero.charName)
+    end
+end
+
+function L9Engine:QueueChampionDownload(championName)
+    if not championName then
+        self:LogDebug("Champion non supporté: " .. tostring(championName))
+        return
+    end
+    
+    local fileName = championName .. ".lua"
+    local localPath = LOCAL_PATH .. "Champions/" .. fileName
+    local remoteUrl = GITHUB_RAW_URL .. "Common/L9Engine/Champions/" .. fileName
+    
+    if not FileExist(localPath) or self.Menu.config.forceUpdate:Value() then
+        self:DownloadFile(remoteUrl, localPath, championName)
+    else
+        self:LogDebug("Fichier local trouvé pour " .. championName)
+    end
+end
+
+function L9Engine:ForceUpdateChampion(championName)
+    self:LogDebug("Mise à jour forcée pour " .. championName)
+    self:QueueChampionDownload(championName)
 end
 
 function L9Engine:IsChampionSupported(championName)
@@ -226,6 +242,10 @@ function L9Engine:IsSpellReady(spellSlot)
     return spellData.currentCd == 0 and Game.CanUseSpell(spellSlot) == 0
 end
 
+function L9Engine:Ready(spellSlot)
+    return self:IsSpellReady(spellSlot)
+end
+
 function L9Engine:IsValidEnemy(target, range)
     if not target then return false end
     if target.dead or not target.visible or not target.isTargetable then return false end
@@ -243,6 +263,18 @@ function L9Engine:GetBestTarget(range)
         return GOS:GetTarget(range)
     end
     return nil
+end
+
+function L9Engine:GetTarget(range)
+    return self:GetBestTarget(range)
+end
+
+function L9Engine:IsValidTarget(target, range)
+    return self:IsValidEnemy(target, range)
+end
+
+function L9Engine:GetMode()
+    return self:GetCurrentMode()
 end
 
 function L9Engine:GetCurrentMode()
