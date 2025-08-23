@@ -64,25 +64,8 @@ function L9Rengar:SelectTarget(range)
 end
 
 function L9Rengar:GetFerocity()
-	local ferocity = 0
-	for i = 0, myHero.buffCount - 1 do
-		local buff = myHero:GetBuff(i)
-		if buff and buff.valid then
-			local buffName = buff.name:lower()
-			-- Vérifier plusieurs noms possibles pour la férocité
-			if buffName:find("rengarferocity") or buffName:find("ferocity") or buffName:find("empowered") then
-				ferocity = buff.count or 0
-				break
-			end
-		end
-	end
-	
-	-- Fallback: utiliser la ressource de Rengar (la férocité est stockée comme ressource)
-	if ferocity == 0 then
-		ferocity = myHero.par or 0
-	end
-	
-	return ferocity
+	-- La férocité de Rengar est stockée dans myHero.mana (comme dans ManlyRengar)
+	return myHero.mana or 0
 end
 
 function L9Rengar:IsInBush()
@@ -98,16 +81,8 @@ end
 function L9Rengar:DebugFerocity()
 	if self.Menu.debug.showFerocity:Value() then
 		local ferocity = self:GetFerocity()
-		local par = myHero.par or 0
-		print("[L9Rengar] Férocité détectée: " .. ferocity .. " (par: " .. par .. ")")
-		
-		-- Afficher tous les buffs pour debug
-		for i = 0, myHero.buffCount - 1 do
-			local buff = myHero:GetBuff(i)
-			if buff and buff.valid then
-				print("[L9Rengar] Buff: " .. buff.name .. " (count: " .. (buff.count or 0) .. ")")
-			end
-		end
+		local mana = myHero.mana or 0
+		print("[L9Rengar] Férocité détectée: " .. ferocity .. " (mana: " .. mana .. ")")
 	end
 end
 
