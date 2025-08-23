@@ -18,7 +18,7 @@ function L9Rengar:__init()
 	self.LastFerocity = 0
 	self.JumpTarget = nil
 	self.JumpStartTime = 0
-	self.IsJumping = false
+	self.Jumping = false
 	self.JumpComboExecuted = false
 	
 	local ok, err = pcall(function() require("DepressivePrediction") end)
@@ -92,19 +92,19 @@ function L9Rengar:CanJump(target)
 end
 
 function L9Rengar:IsJumping()
-	return self.IsJumping
+	return self.Jumping
 end
 
 function L9Rengar:StartJump(target)
 	if not target then return end
 	self.JumpTarget = target
 	self.JumpStartTime = Game.Timer()
-	self.IsJumping = true
+	self.Jumping = true
 	self.JumpComboExecuted = false
 end
 
 function L9Rengar:EndJump()
-	self.IsJumping = false
+	self.Jumping = false
 	self.JumpTarget = nil
 	self.JumpComboExecuted = false
 end
