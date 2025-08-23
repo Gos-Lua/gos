@@ -371,7 +371,7 @@ function L9Rengar:TryPassiveLogic(target)
 		self:TryCastQ(target)
 	elseif priority == 2 then -- W
 		self:TryCastW(target)
-	elseif priority == 3 then -- E
+	elseif priority == 3 and self.Menu.passive.useEPassive:Value() then -- E seulement si activé
 		self:TryCastEPassive(target)
 	end
 end
