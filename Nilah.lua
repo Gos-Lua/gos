@@ -5,6 +5,28 @@ if myHero.charName ~= "Nilah" then return end
 if _G.L9NilahLoaded then return end
 _G.L9NilahLoaded = true
 
+require("DepressivePrediction")
+local PredictionLoaded = false
+
+DelayAction(function()
+    if _G.DepressivePrediction then
+        PredictionLoaded = true
+        print("L9Nilah: DepressivePrediction loaded!")
+    end
+end, 1.0)
+
+local function CheckPredictionSystem()
+    if not PredictionLoaded or not _G.DepressivePrediction then
+        return false
+    end
+    
+    if not _G.DepressivePrediction.GetPrediction then
+        return false
+    end
+    
+    return true
+end
+
 class "L9Nilah"
 
 -- Configuration des sorts
@@ -212,9 +234,9 @@ end
 function L9Nilah:TryCastQ(target)
     if not target or not _G.L9Engine:IsValidEnemy(target, self.Q.Range) then return false end
     
-    local pred = self:GetQPrediction(target)
-    if pred and pred.hitchance >= 0.6 then
-        Control.CastSpell(_G.L9Engine:GetKeybind("Q"), pred.castPos)
+    local prediction, hitChance = self:GetQPrediction(target)
+    if prediction and hitChance >= 2 then
+        Control.CastSpell(_G.L9Engine:GetKeybind("Q"), Vector(prediction.x, myHero.pos.y, prediction.z))
         return true
     end
     return false
@@ -236,9 +258,9 @@ function L9Nilah:TryCastQClear(minions)
     end
     
     if nearestMinion then
-        local pred = self:GetQPrediction(nearestMinion)
-        if pred and pred.hitchance >= 0.5 then
-            Control.CastSpell(_G.L9Engine:GetKeybind("Q"), pred.castPos)
+        local prediction, hitChance = self:GetQPrediction(nearestMinion)
+        if prediction and hitChance >= 2 then
+            Control.CastSpell(_G.L9Engine:GetKeybind("Q"), Vector(prediction.x, myHero.pos.y, prediction.z))
             return true
         end
     end
@@ -290,36 +312,72 @@ end
 function L9Nilah:TryCastR(target)
     if not target or not _G.L9Engine:IsValidEnemy(target, self.R.Range) then return false end
     
-    local pred = self:GetRPrediction(target)
-    if pred and pred.hitchance >= 0.7 then
-        Control.CastSpell(_G.L9Engine:GetKeybind("R"), pred.castPos)
+    local prediction, hitChance = self:GetRPrediction(target)
+    if prediction and hitChance >= 2 then
+        Control.CastSpell(_G.L9Engine:GetKeybind("R"), Vector(prediction.x, myHero.pos.y, prediction.z))
         return true
     end
     return false
 end
 
 function L9Nilah:GetQPrediction(target)
-    if not target or not target.valid then return nil end
-    if _G.DepressivePrediction then
-        local src2D = {x = myHero.pos.x, z = myHero.pos.z}
-        local _, castPos, hitchance = _G.DepressivePrediction.GetPrediction(target, src2D, self.Q.Speed, self.Q.Delay, self.Q.Width)
+    if not target or not target.valid then return nil, 0 end
+    
+    if CheckPredictionSystem() then
+        local spellData = {
+            range = self.Q.Range,
+            speed = self.Q.Speed,
+            delay = self.Q.Delay,
+            radius = self.Q.Width
+        }
+        
+        local sourcePos2D = {x = myHero.pos.x, z = myHero.pos.z}
+        
+        local unitPos, castPos, timeToHit = _G.DepressivePrediction.GetPrediction(
+            target,
+            sourcePos2D,
+            spellData.speed,
+            spellData.delay,
+            spellData.radius
+        )
+        
         if castPos and castPos.x and castPos.z then
-            return {castPos = Vector(castPos.x, myHero.pos.y, castPos.z), hitchance = hitchance or 0.5}
+            local hitChance = 4
+            return {x = castPos.x, z = castPos.z}, hitChance
         end
     end
-    return {castPos = target.pos, hitchance = 0.5}
+    
+    return {x = target.pos.x, z = target.pos.z}, 2
 end
 
 function L9Nilah:GetRPrediction(target)
-    if not target or not target.valid then return nil end
-    if _G.DepressivePrediction then
-        local src2D = {x = myHero.pos.x, z = myHero.pos.z}
-        local _, castPos, hitchance = _G.DepressivePrediction.GetPrediction(target, src2D, self.R.Speed, self.R.Delay, self.R.Width)
+    if not target or not target.valid then return nil, 0 end
+    
+    if CheckPredictionSystem() then
+        local spellData = {
+            range = self.R.Range,
+            speed = self.R.Speed,
+            delay = self.R.Delay,
+            radius = self.R.Width
+        }
+        
+        local sourcePos2D = {x = myHero.pos.x, z = myHero.pos.z}
+        
+        local unitPos, castPos, timeToHit = _G.DepressivePrediction.GetPrediction(
+            target,
+            sourcePos2D,
+            spellData.speed,
+            spellData.delay,
+            spellData.radius
+        )
+        
         if castPos and castPos.x and castPos.z then
-            return {castPos = Vector(castPos.x, myHero.pos.y, castPos.z), hitchance = hitchance or 0.5}
+            local hitChance = 4
+            return {x = castPos.x, z = castPos.z}, hitChance
         end
     end
-    return {castPos = target.pos, hitchance = 0.5}
+    
+    return {x = target.pos.x, z = target.pos.z}, 2
 end
 
 function L9Nilah:GetDashPosition(target)
