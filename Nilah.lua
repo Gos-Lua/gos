@@ -191,7 +191,7 @@ function L9Nilah:DoMisc()
         if nearbyEnemy and myHero.health / myHero.maxHealth < 0.3 then
             local escapePos = self:GetEscapePosition()
             if escapePos then
-                Control.CastSpell(HK_E, escapePos)
+                Control.CastSpell(_G.L9Engine:GetKeybind("E"), escapePos)
             end
         end
     end
@@ -210,7 +210,7 @@ function L9Nilah:TryCastQ(target)
     
     local pred = self:GetQPrediction(target)
     if pred and pred.hitchance >= 0.6 then
-        Control.CastSpell(HK_Q, pred.castPos)
+        Control.CastSpell(_G.L9Engine:GetKeybind("Q"), pred.castPos)
         return true
     end
     return false
@@ -235,7 +235,7 @@ function L9Nilah:TryCastQClear(minions)
     end
     
     if bestPos and maxHits >= 2 then
-        Control.CastSpell(HK_Q, bestPos)
+        Control.CastSpell(_G.L9Engine:GetKeybind("Q"), bestPos)
         return true
     end
     return false
@@ -247,7 +247,7 @@ function L9Nilah:TryCastW(target)
     -- W dash vers l'ennemi
     local dashPos = self:GetDashPosition(target)
     if dashPos then
-        Control.CastSpell(HK_W, dashPos)
+        Control.CastSpell(_G.L9Engine:GetKeybind("W"), dashPos)
         return true
     end
     return false
@@ -259,7 +259,7 @@ function L9Nilah:TryCastWClear(minions)
     -- W dash vers les minions
     local centerPos = self:GetMinionCenter(minions)
     if centerPos then
-        Control.CastSpell(HK_W, centerPos)
+        Control.CastSpell(_G.L9Engine:GetKeybind("W"), centerPos)
         return true
     end
     return false
@@ -270,7 +270,7 @@ function L9Nilah:TryCastE(target)
     
     local dashPos = self:GetDashPosition(target)
     if dashPos then
-        Control.CastSpell(HK_E, dashPos)
+        Control.CastSpell(_G.L9Engine:GetKeybind("E"), dashPos)
         return true
     end
     return false
@@ -281,7 +281,7 @@ function L9Nilah:TryCastEClear(minions)
     
     local centerPos = self:GetMinionCenter(minions)
     if centerPos then
-        Control.CastSpell(HK_E, centerPos)
+        Control.CastSpell(_G.L9Engine:GetKeybind("E"), centerPos)
         return true
     end
     return false
@@ -292,7 +292,7 @@ function L9Nilah:TryCastR(target)
     
     local pred = self:GetRPrediction(target)
     if pred and pred.hitchance >= 0.7 then
-        Control.CastSpell(HK_R, pred.castPos)
+        Control.CastSpell(_G.L9Engine:GetKeybind("R"), pred.castPos)
         return true
     end
     return false
