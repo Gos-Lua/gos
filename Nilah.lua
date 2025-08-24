@@ -1,7 +1,7 @@
 if _G.__L9_ENGINE_NILAH_LOADED then return end
 _G.__L9_ENGINE_NILAH_LOADED = true
 
-local Nilah = {}
+local L9Nilah = {}
 local L9Engine = _G.L9Engine
 
 -- Configuration des sorts
@@ -17,7 +17,7 @@ local lastETime = 0
 local lastRTime = 0
 local passiveStacks = 0
 
-function Nilah:__init()
+function L9Nilah:__init()
     self:CreateMenu()
     self:LoadSpells()
     
@@ -27,7 +27,7 @@ function Nilah:__init()
     print("[L9Nilah] Script chargé !")
 end
 
-function Nilah:CreateMenu()
+function L9Nilah:CreateMenu()
     self.Menu = MenuElement({type = MENU, id = "L9Nilah", name = "L9 Nilah", leftIcon = "https://raw.githubusercontent.com/LeagueSharp/LeagueSharp/master/LeagueSharp.SDK/Resources/Nilah.png"})
     
     -- Menu Combo
@@ -74,14 +74,14 @@ function Nilah:CreateMenu()
     self.Menu.draw:MenuElement({id = "drawPassive", name = "Afficher stacks passif", value = true})
 end
 
-function Nilah:LoadSpells()
+function L9Nilah:LoadSpells()
     self.Q = {Slot = 0, Range = Q.range, Width = Q.width, Speed = Q.speed, Delay = Q.delay}
     self.W = {Slot = 1, Range = W.range, Width = W.width, Speed = W.speed, Delay = W.delay}
     self.E = {Slot = 2, Range = E.range, Width = E.width, Speed = E.speed, Delay = E.delay}
     self.R = {Slot = 3, Range = R.range, Width = R.width, Speed = R.speed, Delay = R.delay}
 end
 
-function Nilah:Tick()
+function L9Nilah:Tick()
     if myHero.dead then return end
     
     local mode = L9Engine:GetCurrentMode()
@@ -100,7 +100,7 @@ function Nilah:Tick()
     self:UpdatePassiveStacks()
 end
 
-function Nilah:DoCombo()
+function L9Nilah:DoCombo()
     local target = L9Engine:GetBestTarget(self.R.Range)
     if not target then return end
     
@@ -132,7 +132,7 @@ function Nilah:DoCombo()
     end
 end
 
-function Nilah:DoHarass()
+function L9Nilah:DoHarass()
     if myHero.mana / myHero.maxMana * 100 < self.Menu.harass.manaHarass:Value() then return end
     
     local target = L9Engine:GetBestTarget(self.Q.Range)
@@ -147,7 +147,7 @@ function Nilah:DoHarass()
     end
 end
 
-function Nilah:DoClear()
+function L9Nilah:DoClear()
     if myHero.mana / myHero.maxMana * 100 < self.Menu.clear.manaClear:Value() then return end
     
     local minions = self:GetMinionsInRange(myHero.pos, self.Q.Range)
@@ -165,7 +165,7 @@ function Nilah:DoClear()
     end
 end
 
-function Nilah:DoLastHit()
+function L9Nilah:DoLastHit()
     local minions = self:GetMinionsInRange(myHero.pos, self.Q.Range)
     
     for _, minion in pairs(minions) do
@@ -176,7 +176,7 @@ function Nilah:DoLastHit()
     end
 end
 
-function Nilah:DoMisc()
+function L9Nilah:DoMisc()
     -- Auto W si ennemi proche
     if self.Menu.misc.autoW:Value() and L9Engine:IsSpellReady(_SPELL1) then
         local nearbyEnemy = self:GetNearestEnemy(300)
@@ -205,7 +205,7 @@ function Nilah:DoMisc()
     end
 end
 
-function Nilah:TryCastQ(target)
+function L9Nilah:TryCastQ(target)
     if not target or not L9Engine:IsValidEnemy(target, self.Q.Range) then return false end
     
     local pred = self:GetQPrediction(target)
@@ -216,7 +216,7 @@ function Nilah:TryCastQ(target)
     return false
 end
 
-function Nilah:TryCastQClear(minions)
+function L9Nilah:TryCastQClear(minions)
     if #minions == 0 then return false end
     
     -- Trouver la meilleure position pour toucher le plus de minions
@@ -241,7 +241,7 @@ function Nilah:TryCastQClear(minions)
     return false
 end
 
-function Nilah:TryCastW(target)
+function L9Nilah:TryCastW(target)
     if not target then return false end
     
     -- W dash vers l'ennemi
@@ -253,7 +253,7 @@ function Nilah:TryCastW(target)
     return false
 end
 
-function Nilah:TryCastWClear(minions)
+function L9Nilah:TryCastWClear(minions)
     if #minions == 0 then return false end
     
     -- W dash vers les minions
@@ -265,7 +265,7 @@ function Nilah:TryCastWClear(minions)
     return false
 end
 
-function Nilah:TryCastE(target)
+function L9Nilah:TryCastE(target)
     if not target or not L9Engine:IsValidEnemy(target, self.E.Range * 2) then return false end
     
     local dashPos = self:GetDashPosition(target)
@@ -276,7 +276,7 @@ function Nilah:TryCastE(target)
     return false
 end
 
-function Nilah:TryCastEClear(minions)
+function L9Nilah:TryCastEClear(minions)
     if #minions == 0 then return false end
     
     local centerPos = self:GetMinionCenter(minions)
@@ -287,7 +287,7 @@ function Nilah:TryCastEClear(minions)
     return false
 end
 
-function Nilah:TryCastR(target)
+function L9Nilah:TryCastR(target)
     if not target or not L9Engine:IsValidEnemy(target, self.R.Range) then return false end
     
     local pred = self:GetRPrediction(target)
@@ -298,7 +298,7 @@ function Nilah:TryCastR(target)
     return false
 end
 
-function Nilah:GetQPrediction(target)
+function L9Nilah:GetQPrediction(target)
     if _G.DepressivePrediction then
         return _G.DepressivePrediction.GetPrediction(target, self.Q.Range, self.Q.Speed, self.Q.Delay, self.Q.Width, myHero.pos, false)
     elseif _G.SDK then
@@ -307,7 +307,7 @@ function Nilah:GetQPrediction(target)
     return nil
 end
 
-function Nilah:GetRPrediction(target)
+function L9Nilah:GetRPrediction(target)
     if _G.DepressivePrediction then
         return _G.DepressivePrediction.GetPrediction(target, self.R.Range, self.R.Speed, self.R.Delay, self.R.Width, myHero.pos, false)
     elseif _G.SDK then
@@ -316,7 +316,7 @@ function Nilah:GetRPrediction(target)
     return nil
 end
 
-function Nilah:GetDashPosition(target)
+function L9Nilah:GetDashPosition(target)
     if not target then return nil end
     
     local targetPos = target.pos
@@ -334,7 +334,7 @@ function Nilah:GetDashPosition(target)
     return nil
 end
 
-function Nilah:GetEscapePosition()
+function L9Nilah:GetEscapePosition()
     local myPos = myHero.pos
     local escapeDistance = 400
     
@@ -355,7 +355,7 @@ function Nilah:GetEscapePosition()
     return nil
 end
 
-function Nilah:IsValidPosition(pos)
+function L9Nilah:IsValidPosition(pos)
     if not pos then return false end
     
     -- Vérifier si la position est dans les limites de la map
@@ -371,7 +371,7 @@ function Nilah:IsValidPosition(pos)
     return true
 end
 
-function Nilah:GetEnemiesInRange(pos, range)
+function L9Nilah:GetEnemiesInRange(pos, range)
     local enemies = {}
     for i = 1, Game.HeroCount() do
         local hero = Game.Hero(i)
@@ -382,7 +382,7 @@ function Nilah:GetEnemiesInRange(pos, range)
     return enemies
 end
 
-function Nilah:GetMinionsInRange(pos, range)
+function L9Nilah:GetMinionsInRange(pos, range)
     local minions = {}
     for i = 1, Game.MinionCount() do
         local minion = Game.Minion(i)
@@ -393,7 +393,7 @@ function Nilah:GetMinionsInRange(pos, range)
     return minions
 end
 
-function Nilah:GetNearestEnemy(range)
+function L9Nilah:GetNearestEnemy(range)
     local nearest = nil
     local minDist = math.huge
     
@@ -411,7 +411,7 @@ function Nilah:GetNearestEnemy(range)
     return nearest
 end
 
-function Nilah:GetMinionCenter(minions)
+function L9Nilah:GetMinionCenter(minions)
     if #minions == 0 then return nil end
     
     local centerX = 0
@@ -428,7 +428,7 @@ function Nilah:GetMinionCenter(minions)
     return Vector(centerX, myHero.pos.y, centerZ)
 end
 
-function Nilah:CountMinionsHit(pos, range, width)
+function L9Nilah:CountMinionsHit(pos, range, width)
     local count = 0
     local minions = self:GetMinionsInRange(pos, range)
     
@@ -442,7 +442,7 @@ function Nilah:CountMinionsHit(pos, range, width)
     return count
 end
 
-function Nilah:GetQDamage(target)
+function L9Nilah:GetQDamage(target)
     if not target then return 0 end
     
     local level = myHero:GetSpellData(_SPELL0).level
@@ -452,7 +452,7 @@ function Nilah:GetQDamage(target)
     return baseDamage + (myHero.totalDamage * adRatio)
 end
 
-function Nilah:UpdatePassiveStacks()
+function L9Nilah:UpdatePassiveStacks()
     -- Mettre à jour les stacks du passif (Nilah gagne des stacks en attaquant)
     local passiveBuff = myHero:GetBuff("NilahPassive")
     if passiveBuff then
@@ -462,7 +462,7 @@ function Nilah:UpdatePassiveStacks()
     end
 end
 
-function Nilah:Draw()
+function L9Nilah:Draw()
     if myHero.dead then return end
     
     local myPos = myHero.pos
@@ -491,5 +491,4 @@ function Nilah:Draw()
     end
 end
 
--- Initialisation automatique
-Nilah()
+L9Nilah()
