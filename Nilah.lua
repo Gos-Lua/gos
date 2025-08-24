@@ -523,7 +523,7 @@ end
 function L9Nilah:GetQDamage(target)
     if not target then return 0 end
     
-    local level = myHero:GetSpellData(_SPELL0).level
+    local level = myHero:GetSpellData(_Q).level
     local baseDamage = 5 + (level - 1) * 15
     local adRatio = 0.9
     
