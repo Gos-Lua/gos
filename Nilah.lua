@@ -491,9 +491,5 @@ function Nilah:Draw()
     end
 end
 
--- Initialisation
-Callback.Add("Load", function()
-    if myHero.charName == "Nilah" then
-        Nilah:__init()
-    end
-end)
+-- Initialisation automatique
+Nilah()
