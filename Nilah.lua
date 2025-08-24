@@ -1,0 +1,499 @@
+if _G.__L9_ENGINE_NILAH_LOADED then return end
+_G.__L9_ENGINE_NILAH_LOADED = true
+
+local Nilah = {}
+local L9Engine = _G.L9Engine
+
+-- Configuration des sorts
+local Q = { range = 600, width = 100, speed = 2000, delay = 0.25 }
+local W = { range = 0, width = 0, speed = math.huge, delay = 0 }
+local E = { range = 550, width = 0, speed = math.huge, delay = 0 }
+local R = { range = 600, width = 400, speed = math.huge, delay = 0.5 }
+
+-- Variables locales
+local lastQTime = 0
+local lastWTime = 0
+local lastETime = 0
+local lastRTime = 0
+local passiveStacks = 0
+
+function Nilah:__init()
+    self:CreateMenu()
+    self:LoadSpells()
+    
+    Callback.Add("Tick", function() self:Tick() end)
+    Callback.Add("Draw", function() self:Draw() end)
+    
+    print("[L9Nilah] Script chargé !")
+end
+
+function Nilah:CreateMenu()
+    self.Menu = MenuElement({type = MENU, id = "L9Nilah", name = "L9 Nilah", leftIcon = "https://raw.githubusercontent.com/LeagueSharp/LeagueSharp/master/LeagueSharp.SDK/Resources/Nilah.png"})
+    
+    -- Menu Combo
+    self.Menu:MenuElement({type = MENU, id = "combo", name = "Combo"})
+    self.Menu.combo:MenuElement({id = "useQ", name = "Utiliser Q", value = true})
+    self.Menu.combo:MenuElement({id = "useW", name = "Utiliser W (dash)", value = true})
+    self.Menu.combo:MenuElement({id = "useE", name = "Utiliser E (dash)", value = true})
+    self.Menu.combo:MenuElement({id = "useR", name = "Utiliser R", value = true})
+    self.Menu.combo:MenuElement({id = "minEnemiesR", name = "Ennemis minimum pour R", value = 2, min = 1, max = 5})
+    self.Menu.combo:MenuElement({id = "useRHP", name = "Utiliser R si ennemi HP < %", value = 50, min = 10, max = 100})
+    
+    -- Menu Harass
+    self.Menu:MenuElement({type = MENU, id = "harass", name = "Harass"})
+    self.Menu.harass:MenuElement({id = "useQ", name = "Utiliser Q", value = true})
+    self.Menu.harass:MenuElement({id = "useW", name = "Utiliser W", value = false})
+    self.Menu.harass:MenuElement({id = "manaHarass", name = "Mana minimum %", value = 40, min = 0, max = 100})
+    
+    -- Menu Farm
+    self.Menu:MenuElement({type = MENU, id = "farm", name = "Farm"})
+    self.Menu.farm:MenuElement({id = "useQ", name = "Utiliser Q", value = true})
+    self.Menu.farm:MenuElement({id = "useW", name = "Utiliser W", value = false})
+    self.Menu.farm:MenuElement({id = "manaFarm", name = "Mana minimum %", value = 30, min = 0, max = 100})
+    
+    -- Menu Clear
+    self.Menu:MenuElement({type = MENU, id = "clear", name = "Clear"})
+    self.Menu.clear:MenuElement({id = "useQ", name = "Utiliser Q", value = true})
+    self.Menu.clear:MenuElement({id = "useW", name = "Utiliser W", value = true})
+    self.Menu.clear:MenuElement({id = "useE", name = "Utiliser E", value = false})
+    self.Menu.clear:MenuElement({id = "minMinions", name = "Minions minimum pour W", value = 3, min = 1, max = 10})
+    self.Menu.clear:MenuElement({id = "manaClear", name = "Mana minimum %", value = 20, min = 0, max = 100})
+    
+    -- Menu Misc
+    self.Menu:MenuElement({type = MENU, id = "misc", name = "Misc"})
+    self.Menu.misc:MenuElement({id = "autoW", name = "Auto W (dash) si ennemi proche", value = true})
+    self.Menu.misc:MenuElement({id = "autoE", name = "Auto E pour échapper", value = true})
+    self.Menu.misc:MenuElement({id = "autoR", name = "Auto R si plusieurs ennemis", value = true})
+    self.Menu.misc:MenuElement({id = "autoRCount", name = "Ennemis pour auto R", value = 3, min = 2, max = 5})
+    
+    -- Menu Draw
+    self.Menu:MenuElement({type = MENU, id = "draw", name = "Draw"})
+    self.Menu.draw:MenuElement({id = "drawQ", name = "Dessiner Q range", value = true})
+    self.Menu.draw:MenuElement({id = "drawE", name = "Dessiner E range", value = true})
+    self.Menu.draw:MenuElement({id = "drawR", name = "Dessiner R range", value = true})
+    self.Menu.draw:MenuElement({id = "drawPassive", name = "Afficher stacks passif", value = true})
+end
+
+function Nilah:LoadSpells()
+    self.Q = {Slot = 0, Range = Q.range, Width = Q.width, Speed = Q.speed, Delay = Q.delay}
+    self.W = {Slot = 1, Range = W.range, Width = W.width, Speed = W.speed, Delay = W.delay}
+    self.E = {Slot = 2, Range = E.range, Width = E.width, Speed = E.speed, Delay = E.delay}
+    self.R = {Slot = 3, Range = R.range, Width = R.width, Speed = R.speed, Delay = R.delay}
+end
+
+function Nilah:Tick()
+    if myHero.dead then return end
+    
+    local mode = L9Engine:GetCurrentMode()
+    
+    if mode == "Combo" then
+        self:DoCombo()
+    elseif mode == "Harass" then
+        self:DoHarass()
+    elseif mode == "Clear" then
+        self:DoClear()
+    elseif mode == "LastHit" then
+        self:DoLastHit()
+    end
+    
+    self:DoMisc()
+    self:UpdatePassiveStacks()
+end
+
+function Nilah:DoCombo()
+    local target = L9Engine:GetBestTarget(self.R.Range)
+    if not target then return end
+    
+    -- Utiliser R si plusieurs ennemis
+    if self.Menu.combo.useR:Value() and L9Engine:IsSpellReady(_SPELL3) then
+        local enemies = self:GetEnemiesInRange(myHero.pos, self.R.Range)
+        if #enemies >= self.Menu.combo.minEnemiesR:Value() then
+            self:TryCastR(target)
+        end
+    end
+    
+    -- Utiliser E pour gap close
+    if self.Menu.combo.useE:Value() and L9Engine:IsSpellReady(_SPELL2) then
+        if L9Engine:CalculateDistance(myHero.pos, target.pos) > self.Q.Range and L9Engine:CalculateDistance(myHero.pos, target.pos) < self.E.Range * 2 then
+            self:TryCastE(target)
+        end
+    end
+    
+    -- Utiliser Q
+    if self.Menu.combo.useQ:Value() and L9Engine:IsSpellReady(_SPELL0) then
+        self:TryCastQ(target)
+    end
+    
+    -- Utiliser W pour dash ou buff
+    if self.Menu.combo.useW:Value() and L9Engine:IsSpellReady(_SPELL1) then
+        if L9Engine:CalculateDistance(myHero.pos, target.pos) > self.Q.Range then
+            self:TryCastW(target)
+        end
+    end
+end
+
+function Nilah:DoHarass()
+    if myHero.mana / myHero.maxMana * 100 < self.Menu.harass.manaHarass:Value() then return end
+    
+    local target = L9Engine:GetBestTarget(self.Q.Range)
+    if not target then return end
+    
+    if self.Menu.harass.useQ:Value() and L9Engine:IsSpellReady(_SPELL0) then
+        self:TryCastQ(target)
+    end
+    
+    if self.Menu.harass.useW:Value() and L9Engine:IsSpellReady(_SPELL1) then
+        self:TryCastW(target)
+    end
+end
+
+function Nilah:DoClear()
+    if myHero.mana / myHero.maxMana * 100 < self.Menu.clear.manaClear:Value() then return end
+    
+    local minions = self:GetMinionsInRange(myHero.pos, self.Q.Range)
+    
+    if self.Menu.clear.useQ:Value() and L9Engine:IsSpellReady(_SPELL0) and #minions > 0 then
+        self:TryCastQClear(minions)
+    end
+    
+    if self.Menu.clear.useW:Value() and L9Engine:IsSpellReady(_SPELL1) and #minions >= self.Menu.clear.minMinions:Value() then
+        self:TryCastWClear(minions)
+    end
+    
+    if self.Menu.clear.useE:Value() and L9Engine:IsSpellReady(_SPELL2) then
+        self:TryCastEClear(minions)
+    end
+end
+
+function Nilah:DoLastHit()
+    local minions = self:GetMinionsInRange(myHero.pos, self.Q.Range)
+    
+    for _, minion in pairs(minions) do
+        if minion.health <= self:GetQDamage(minion) and L9Engine:IsSpellReady(_SPELL0) then
+            self:TryCastQ(minion)
+            break
+        end
+    end
+end
+
+function Nilah:DoMisc()
+    -- Auto W si ennemi proche
+    if self.Menu.misc.autoW:Value() and L9Engine:IsSpellReady(_SPELL1) then
+        local nearbyEnemy = self:GetNearestEnemy(300)
+        if nearbyEnemy then
+            self:TryCastW(nearbyEnemy)
+        end
+    end
+    
+    -- Auto E pour échapper
+    if self.Menu.misc.autoE:Value() and L9Engine:IsSpellReady(_SPELL2) then
+        local nearbyEnemy = self:GetNearestEnemy(400)
+        if nearbyEnemy and myHero.health / myHero.maxHealth < 0.3 then
+            local escapePos = self:GetEscapePosition()
+            if escapePos then
+                Control.CastSpell(HK_E, escapePos)
+            end
+        end
+    end
+    
+    -- Auto R si plusieurs ennemis
+    if self.Menu.misc.autoR:Value() and L9Engine:IsSpellReady(_SPELL3) then
+        local enemies = self:GetEnemiesInRange(myHero.pos, self.R.Range)
+        if #enemies >= self.Menu.misc.autoRCount:Value() then
+            self:TryCastR(enemies[1])
+        end
+    end
+end
+
+function Nilah:TryCastQ(target)
+    if not target or not L9Engine:IsValidEnemy(target, self.Q.Range) then return false end
+    
+    local pred = self:GetQPrediction(target)
+    if pred and pred.hitchance >= 0.6 then
+        Control.CastSpell(HK_Q, pred.castPos)
+        return true
+    end
+    return false
+end
+
+function Nilah:TryCastQClear(minions)
+    if #minions == 0 then return false end
+    
+    -- Trouver la meilleure position pour toucher le plus de minions
+    local bestPos = nil
+    local maxHits = 0
+    
+    for _, minion in pairs(minions) do
+        local pred = self:GetQPrediction(minion)
+        if pred then
+            local hits = self:CountMinionsHit(pred.castPos, self.Q.Range, self.Q.Width)
+            if hits > maxHits then
+                maxHits = hits
+                bestPos = pred.castPos
+            end
+        end
+    end
+    
+    if bestPos and maxHits >= 2 then
+        Control.CastSpell(HK_Q, bestPos)
+        return true
+    end
+    return false
+end
+
+function Nilah:TryCastW(target)
+    if not target then return false end
+    
+    -- W dash vers l'ennemi
+    local dashPos = self:GetDashPosition(target)
+    if dashPos then
+        Control.CastSpell(HK_W, dashPos)
+        return true
+    end
+    return false
+end
+
+function Nilah:TryCastWClear(minions)
+    if #minions == 0 then return false end
+    
+    -- W dash vers les minions
+    local centerPos = self:GetMinionCenter(minions)
+    if centerPos then
+        Control.CastSpell(HK_W, centerPos)
+        return true
+    end
+    return false
+end
+
+function Nilah:TryCastE(target)
+    if not target or not L9Engine:IsValidEnemy(target, self.E.Range * 2) then return false end
+    
+    local dashPos = self:GetDashPosition(target)
+    if dashPos then
+        Control.CastSpell(HK_E, dashPos)
+        return true
+    end
+    return false
+end
+
+function Nilah:TryCastEClear(minions)
+    if #minions == 0 then return false end
+    
+    local centerPos = self:GetMinionCenter(minions)
+    if centerPos then
+        Control.CastSpell(HK_E, centerPos)
+        return true
+    end
+    return false
+end
+
+function Nilah:TryCastR(target)
+    if not target or not L9Engine:IsValidEnemy(target, self.R.Range) then return false end
+    
+    local pred = self:GetRPrediction(target)
+    if pred and pred.hitchance >= 0.7 then
+        Control.CastSpell(HK_R, pred.castPos)
+        return true
+    end
+    return false
+end
+
+function Nilah:GetQPrediction(target)
+    if _G.DepressivePrediction then
+        return _G.DepressivePrediction.GetPrediction(target, self.Q.Range, self.Q.Speed, self.Q.Delay, self.Q.Width, myHero.pos, false)
+    elseif _G.SDK then
+        return _G.SDK.Prediction:GetPrediction(target, self.Q.Range, self.Q.Speed, self.Q.Delay, self.Q.Width, myHero.pos, false)
+    end
+    return nil
+end
+
+function Nilah:GetRPrediction(target)
+    if _G.DepressivePrediction then
+        return _G.DepressivePrediction.GetPrediction(target, self.R.Range, self.R.Speed, self.R.Delay, self.R.Width, myHero.pos, false)
+    elseif _G.SDK then
+        return _G.SDK.Prediction:GetPrediction(target, self.R.Range, self.R.Speed, self.R.Delay, self.R.Width, myHero.pos, false)
+    end
+    return nil
+end
+
+function Nilah:GetDashPosition(target)
+    if not target then return nil end
+    
+    local targetPos = target.pos
+    local myPos = myHero.pos
+    local direction = (targetPos - myPos):Normalized()
+    local dashDistance = 300 -- Distance de dash approximative
+    
+    local dashPos = myPos + direction * dashDistance
+    
+    -- Vérifier si la position est valide
+    if self:IsValidPosition(dashPos) then
+        return dashPos
+    end
+    
+    return nil
+end
+
+function Nilah:GetEscapePosition()
+    local myPos = myHero.pos
+    local escapeDistance = 400
+    
+    -- Essayer plusieurs directions
+    local directions = {
+        Vector(myPos.x + escapeDistance, myPos.y, myPos.z),
+        Vector(myPos.x - escapeDistance, myPos.y, myPos.z),
+        Vector(myPos.x, myPos.y, myPos.z + escapeDistance),
+        Vector(myPos.x, myPos.y, myPos.z - escapeDistance)
+    }
+    
+    for _, pos in pairs(directions) do
+        if self:IsValidPosition(pos) then
+            return pos
+        end
+    end
+    
+    return nil
+end
+
+function Nilah:IsValidPosition(pos)
+    if not pos then return false end
+    
+    -- Vérifier si la position est dans les limites de la map
+    if pos.x < 0 or pos.x > 15000 or pos.z < 0 or pos.z > 15000 then
+        return false
+    end
+    
+    -- Vérifier s'il y a des obstacles
+    if MapPosition:inWall(pos) then
+        return false
+    end
+    
+    return true
+end
+
+function Nilah:GetEnemiesInRange(pos, range)
+    local enemies = {}
+    for i = 1, Game.HeroCount() do
+        local hero = Game.Hero(i)
+        if L9Engine:IsValidEnemy(hero, range) and L9Engine:CalculateDistance(pos, hero.pos) <= range then
+            table.insert(enemies, hero)
+        end
+    end
+    return enemies
+end
+
+function Nilah:GetMinionsInRange(pos, range)
+    local minions = {}
+    for i = 1, Game.MinionCount() do
+        local minion = Game.Minion(i)
+        if minion and minion.team ~= myHero.team and not minion.dead and L9Engine:CalculateDistance(pos, minion.pos) <= range then
+            table.insert(minions, minion)
+        end
+    end
+    return minions
+end
+
+function Nilah:GetNearestEnemy(range)
+    local nearest = nil
+    local minDist = math.huge
+    
+    for i = 1, Game.HeroCount() do
+        local hero = Game.Hero(i)
+        if L9Engine:IsValidEnemy(hero, range) then
+            local dist = L9Engine:CalculateDistance(myHero.pos, hero.pos)
+            if dist < minDist then
+                minDist = dist
+                nearest = hero
+            end
+        end
+    end
+    
+    return nearest
+end
+
+function Nilah:GetMinionCenter(minions)
+    if #minions == 0 then return nil end
+    
+    local centerX = 0
+    local centerZ = 0
+    
+    for _, minion in pairs(minions) do
+        centerX = centerX + minion.pos.x
+        centerZ = centerZ + minion.pos.z
+    end
+    
+    centerX = centerX / #minions
+    centerZ = centerZ / #minions
+    
+    return Vector(centerX, myHero.pos.y, centerZ)
+end
+
+function Nilah:CountMinionsHit(pos, range, width)
+    local count = 0
+    local minions = self:GetMinionsInRange(pos, range)
+    
+    for _, minion in pairs(minions) do
+        local dist = L9Engine:CalculateDistance(pos, minion.pos)
+        if dist <= width / 2 then
+            count = count + 1
+        end
+    end
+    
+    return count
+end
+
+function Nilah:GetQDamage(target)
+    if not target then return 0 end
+    
+    local level = myHero:GetSpellData(_SPELL0).level
+    local baseDamage = 5 + (level - 1) * 15
+    local adRatio = 0.9
+    
+    return baseDamage + (myHero.totalDamage * adRatio)
+end
+
+function Nilah:UpdatePassiveStacks()
+    -- Mettre à jour les stacks du passif (Nilah gagne des stacks en attaquant)
+    local passiveBuff = myHero:GetBuff("NilahPassive")
+    if passiveBuff then
+        passiveStacks = passiveBuff.count or 0
+    else
+        passiveStacks = 0
+    end
+end
+
+function Nilah:Draw()
+    if myHero.dead then return end
+    
+    local myPos = myHero.pos
+    
+    -- Dessiner Q range
+    if self.Menu.draw.drawQ:Value() and L9Engine:IsSpellReady(_SPELL0) then
+        Draw.Circle(myPos, self.Q.Range, 1, Draw.Color(255, 255, 255, 255))
+    end
+    
+    -- Dessiner E range
+    if self.Menu.draw.drawE:Value() and L9Engine:IsSpellReady(_SPELL2) then
+        Draw.Circle(myPos, self.E.Range, 1, Draw.Color(255, 0, 255, 255))
+    end
+    
+    -- Dessiner R range
+    if self.Menu.draw.drawR:Value() and L9Engine:IsSpellReady(_SPELL3) then
+        Draw.Circle(myPos, self.R.Range, 1, Draw.Color(255, 255, 0, 255))
+    end
+    
+    -- Afficher stacks passif
+    if self.Menu.draw.drawPassive:Value() then
+        local textPos = Renderer.WorldToScreen(myPos)
+        if textPos then
+            Draw.Text("Passif: " .. passiveStacks .. " stacks", 15, textPos.x - 30, textPos.y - 50, Draw.Color(255, 255, 255, 255))
+        end
+    end
+end
+
+-- Initialisation
+Callback.Add("Load", function()
+    if myHero.charName == "Nilah" then
+        Nilah:__init()
+    end
+end)
