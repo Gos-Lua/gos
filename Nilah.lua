@@ -1,8 +1,11 @@
-if _G.__L9_ENGINE_NILAH_LOADED then return end
-_G.__L9_ENGINE_NILAH_LOADED = true
+local Version = 1.0
+local Name = "L9Nilah"
 
-local L9Nilah = {}
-local L9Engine = _G.L9Engine
+if myHero.charName ~= "Nilah" then return end
+if _G.L9NilahLoaded then return end
+_G.L9NilahLoaded = true
+
+class "L9Nilah"
 
 -- Configuration des sorts
 local Q = { range = 600, width = 100, speed = 2000, delay = 0.25 }
@@ -18,8 +21,8 @@ local lastRTime = 0
 local passiveStacks = 0
 
 function L9Nilah:__init()
-    self:CreateMenu()
     self:LoadSpells()
+    self:CreateMenu()
     
     Callback.Add("Tick", function() self:Tick() end)
     Callback.Add("Draw", function() self:Draw() end)
@@ -84,7 +87,7 @@ end
 function L9Nilah:Tick()
     if myHero.dead then return end
     
-    local mode = L9Engine:GetCurrentMode()
+    local mode = _G.L9Engine:GetCurrentMode()
     
     if mode == "Combo" then
         self:DoCombo()
@@ -101,11 +104,11 @@ function L9Nilah:Tick()
 end
 
 function L9Nilah:DoCombo()
-    local target = L9Engine:GetBestTarget(self.R.Range)
+    local target = _G.L9Engine:GetBestTarget(self.R.Range)
     if not target then return end
     
     -- Utiliser R si plusieurs ennemis
-    if self.Menu.combo.useR:Value() and L9Engine:IsSpellReady(_SPELL3) then
+    if self.Menu.combo.useR:Value() and _G.L9Engine:IsSpellReady(_SPELL3) then
         local enemies = self:GetEnemiesInRange(myHero.pos, self.R.Range)
         if #enemies >= self.Menu.combo.minEnemiesR:Value() then
             self:TryCastR(target)
@@ -113,20 +116,20 @@ function L9Nilah:DoCombo()
     end
     
     -- Utiliser E pour gap close
-    if self.Menu.combo.useE:Value() and L9Engine:IsSpellReady(_SPELL2) then
-        if L9Engine:CalculateDistance(myHero.pos, target.pos) > self.Q.Range and L9Engine:CalculateDistance(myHero.pos, target.pos) < self.E.Range * 2 then
+    if self.Menu.combo.useE:Value() and _G.L9Engine:IsSpellReady(_SPELL2) then
+        if _G.L9Engine:CalculateDistance(myHero.pos, target.pos) > self.Q.Range and _G.L9Engine:CalculateDistance(myHero.pos, target.pos) < self.E.Range * 2 then
             self:TryCastE(target)
         end
     end
     
     -- Utiliser Q
-    if self.Menu.combo.useQ:Value() and L9Engine:IsSpellReady(_SPELL0) then
+    if self.Menu.combo.useQ:Value() and _G.L9Engine:IsSpellReady(_SPELL0) then
         self:TryCastQ(target)
     end
     
     -- Utiliser W pour dash ou buff
-    if self.Menu.combo.useW:Value() and L9Engine:IsSpellReady(_SPELL1) then
-        if L9Engine:CalculateDistance(myHero.pos, target.pos) > self.Q.Range then
+    if self.Menu.combo.useW:Value() and _G.L9Engine:IsSpellReady(_SPELL1) then
+        if _G.L9Engine:CalculateDistance(myHero.pos, target.pos) > self.Q.Range then
             self:TryCastW(target)
         end
     end
@@ -135,14 +138,14 @@ end
 function L9Nilah:DoHarass()
     if myHero.mana / myHero.maxMana * 100 < self.Menu.harass.manaHarass:Value() then return end
     
-    local target = L9Engine:GetBestTarget(self.Q.Range)
+    local target = _G.L9Engine:GetBestTarget(self.Q.Range)
     if not target then return end
     
-    if self.Menu.harass.useQ:Value() and L9Engine:IsSpellReady(_SPELL0) then
+    if self.Menu.harass.useQ:Value() and _G.L9Engine:IsSpellReady(_SPELL0) then
         self:TryCastQ(target)
     end
     
-    if self.Menu.harass.useW:Value() and L9Engine:IsSpellReady(_SPELL1) then
+    if self.Menu.harass.useW:Value() and _G.L9Engine:IsSpellReady(_SPELL1) then
         self:TryCastW(target)
     end
 end
@@ -152,15 +155,15 @@ function L9Nilah:DoClear()
     
     local minions = self:GetMinionsInRange(myHero.pos, self.Q.Range)
     
-    if self.Menu.clear.useQ:Value() and L9Engine:IsSpellReady(_SPELL0) and #minions > 0 then
+    if self.Menu.clear.useQ:Value() and _G.L9Engine:IsSpellReady(_SPELL0) and #minions > 0 then
         self:TryCastQClear(minions)
     end
     
-    if self.Menu.clear.useW:Value() and L9Engine:IsSpellReady(_SPELL1) and #minions >= self.Menu.clear.minMinions:Value() then
+    if self.Menu.clear.useW:Value() and _G.L9Engine:IsSpellReady(_SPELL1) and #minions >= self.Menu.clear.minMinions:Value() then
         self:TryCastWClear(minions)
     end
     
-    if self.Menu.clear.useE:Value() and L9Engine:IsSpellReady(_SPELL2) then
+    if self.Menu.clear.useE:Value() and _G.L9Engine:IsSpellReady(_SPELL2) then
         self:TryCastEClear(minions)
     end
 end
@@ -169,7 +172,7 @@ function L9Nilah:DoLastHit()
     local minions = self:GetMinionsInRange(myHero.pos, self.Q.Range)
     
     for _, minion in pairs(minions) do
-        if minion.health <= self:GetQDamage(minion) and L9Engine:IsSpellReady(_SPELL0) then
+        if minion.health <= self:GetQDamage(minion) and _G.L9Engine:IsSpellReady(_SPELL0) then
             self:TryCastQ(minion)
             break
         end
@@ -178,7 +181,7 @@ end
 
 function L9Nilah:DoMisc()
     -- Auto W si ennemi proche
-    if self.Menu.misc.autoW:Value() and L9Engine:IsSpellReady(_SPELL1) then
+    if self.Menu.misc.autoW:Value() and _G.L9Engine:IsSpellReady(_SPELL1) then
         local nearbyEnemy = self:GetNearestEnemy(300)
         if nearbyEnemy then
             self:TryCastW(nearbyEnemy)
@@ -186,7 +189,7 @@ function L9Nilah:DoMisc()
     end
     
     -- Auto E pour échapper
-    if self.Menu.misc.autoE:Value() and L9Engine:IsSpellReady(_SPELL2) then
+    if self.Menu.misc.autoE:Value() and _G.L9Engine:IsSpellReady(_SPELL2) then
         local nearbyEnemy = self:GetNearestEnemy(400)
         if nearbyEnemy and myHero.health / myHero.maxHealth < 0.3 then
             local escapePos = self:GetEscapePosition()
@@ -197,7 +200,7 @@ function L9Nilah:DoMisc()
     end
     
     -- Auto R si plusieurs ennemis
-    if self.Menu.misc.autoR:Value() and L9Engine:IsSpellReady(_SPELL3) then
+    if self.Menu.misc.autoR:Value() and _G.L9Engine:IsSpellReady(_SPELL3) then
         local enemies = self:GetEnemiesInRange(myHero.pos, self.R.Range)
         if #enemies >= self.Menu.misc.autoRCount:Value() then
             self:TryCastR(enemies[1])
@@ -206,7 +209,7 @@ function L9Nilah:DoMisc()
 end
 
 function L9Nilah:TryCastQ(target)
-    if not target or not L9Engine:IsValidEnemy(target, self.Q.Range) then return false end
+    if not target or not _G.L9Engine:IsValidEnemy(target, self.Q.Range) then return false end
     
     local pred = self:GetQPrediction(target)
     if pred and pred.hitchance >= 0.6 then
@@ -266,7 +269,7 @@ function L9Nilah:TryCastWClear(minions)
 end
 
 function L9Nilah:TryCastE(target)
-    if not target or not L9Engine:IsValidEnemy(target, self.E.Range * 2) then return false end
+    if not target or not _G.L9Engine:IsValidEnemy(target, self.E.Range * 2) then return false end
     
     local dashPos = self:GetDashPosition(target)
     if dashPos then
@@ -288,7 +291,7 @@ function L9Nilah:TryCastEClear(minions)
 end
 
 function L9Nilah:TryCastR(target)
-    if not target or not L9Engine:IsValidEnemy(target, self.R.Range) then return false end
+    if not target or not _G.L9Engine:IsValidEnemy(target, self.R.Range) then return false end
     
     local pred = self:GetRPrediction(target)
     if pred and pred.hitchance >= 0.7 then
@@ -375,7 +378,7 @@ function L9Nilah:GetEnemiesInRange(pos, range)
     local enemies = {}
     for i = 1, Game.HeroCount() do
         local hero = Game.Hero(i)
-        if L9Engine:IsValidEnemy(hero, range) and L9Engine:CalculateDistance(pos, hero.pos) <= range then
+        if _G.L9Engine:IsValidEnemy(hero, range) and _G.L9Engine:CalculateDistance(pos, hero.pos) <= range then
             table.insert(enemies, hero)
         end
     end
@@ -386,7 +389,7 @@ function L9Nilah:GetMinionsInRange(pos, range)
     local minions = {}
     for i = 1, Game.MinionCount() do
         local minion = Game.Minion(i)
-        if minion and minion.team ~= myHero.team and not minion.dead and L9Engine:CalculateDistance(pos, minion.pos) <= range then
+        if minion and minion.team ~= myHero.team and not minion.dead and _G.L9Engine:CalculateDistance(pos, minion.pos) <= range then
             table.insert(minions, minion)
         end
     end
@@ -399,8 +402,8 @@ function L9Nilah:GetNearestEnemy(range)
     
     for i = 1, Game.HeroCount() do
         local hero = Game.Hero(i)
-        if L9Engine:IsValidEnemy(hero, range) then
-            local dist = L9Engine:CalculateDistance(myHero.pos, hero.pos)
+        if _G.L9Engine:IsValidEnemy(hero, range) then
+            local dist = _G.L9Engine:CalculateDistance(myHero.pos, hero.pos)
             if dist < minDist then
                 minDist = dist
                 nearest = hero
@@ -433,7 +436,7 @@ function L9Nilah:CountMinionsHit(pos, range, width)
     local minions = self:GetMinionsInRange(pos, range)
     
     for _, minion in pairs(minions) do
-        local dist = L9Engine:CalculateDistance(pos, minion.pos)
+        local dist = _G.L9Engine:CalculateDistance(pos, minion.pos)
         if dist <= width / 2 then
             count = count + 1
         end
@@ -468,17 +471,17 @@ function L9Nilah:Draw()
     local myPos = myHero.pos
     
     -- Dessiner Q range
-    if self.Menu.draw.drawQ:Value() and L9Engine:IsSpellReady(_SPELL0) then
+    if self.Menu.draw.drawQ:Value() and _G.L9Engine:IsSpellReady(_SPELL0) then
         Draw.Circle(myPos, self.Q.Range, 1, Draw.Color(255, 255, 255, 255))
     end
     
     -- Dessiner E range
-    if self.Menu.draw.drawE:Value() and L9Engine:IsSpellReady(_SPELL2) then
+    if self.Menu.draw.drawE:Value() and _G.L9Engine:IsSpellReady(_SPELL2) then
         Draw.Circle(myPos, self.E.Range, 1, Draw.Color(255, 0, 255, 255))
     end
     
     -- Dessiner R range
-    if self.Menu.draw.drawR:Value() and L9Engine:IsSpellReady(_SPELL3) then
+    if self.Menu.draw.drawR:Value() and _G.L9Engine:IsSpellReady(_SPELL3) then
         Draw.Circle(myPos, self.R.Range, 1, Draw.Color(255, 255, 0, 255))
     end
     
