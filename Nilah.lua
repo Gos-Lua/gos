@@ -36,7 +36,7 @@ function L9Nilah:CreateMenu()
     -- Menu Combo
     self.Menu:MenuElement({type = MENU, id = "combo", name = "Combo"})
     self.Menu.combo:MenuElement({id = "useQ", name = "Utiliser Q", value = true})
-    self.Menu.combo:MenuElement({id = "useW", name = "Utiliser W (dash)", value = true})
+    self.Menu.combo:MenuElement({id = "useW", name = "Utiliser W (buff équipe)", value = true})
     self.Menu.combo:MenuElement({id = "useE", name = "Utiliser E (dash)", value = true})
     self.Menu.combo:MenuElement({id = "useR", name = "Utiliser R", value = true})
     self.Menu.combo:MenuElement({id = "minEnemiesR", name = "Ennemis minimum pour R", value = 2, min = 1, max = 5})
@@ -64,7 +64,7 @@ function L9Nilah:CreateMenu()
     
     -- Menu Misc
     self.Menu:MenuElement({type = MENU, id = "misc", name = "Misc"})
-    self.Menu.misc:MenuElement({id = "autoW", name = "Auto W (dash) si ennemi proche", value = true})
+    self.Menu.misc:MenuElement({id = "autoW", name = "Auto W (buff équipe) si alliés proches", value = true})
     self.Menu.misc:MenuElement({id = "autoE", name = "Auto E pour échapper", value = true})
     self.Menu.misc:MenuElement({id = "autoR", name = "Auto R si plusieurs ennemis", value = true})
     self.Menu.misc:MenuElement({id = "autoRCount", name = "Ennemis pour auto R", value = 3, min = 2, max = 5})
@@ -127,11 +127,9 @@ function L9Nilah:DoCombo()
         self:TryCastQ(target)
     end
     
-    -- Utiliser W pour dash ou buff
+    -- Utiliser W pour buff d'équipe
     if self.Menu.combo.useW:Value() and _G.L9Engine:IsSpellReady(_SPELL1) then
-        if _G.L9Engine:CalculateDistance(myHero.pos, target.pos) > self.Q.Range then
-            self:TryCastW(target)
-        end
+        self:TryCastW()
     end
 end
 
@@ -146,7 +144,7 @@ function L9Nilah:DoHarass()
     end
     
     if self.Menu.harass.useW:Value() and _G.L9Engine:IsSpellReady(_SPELL1) then
-        self:TryCastW(target)
+        self:TryCastW()
     end
 end
 
@@ -159,8 +157,8 @@ function L9Nilah:DoClear()
         self:TryCastQClear(minions)
     end
     
-    if self.Menu.clear.useW:Value() and _G.L9Engine:IsSpellReady(_SPELL1) and #minions >= self.Menu.clear.minMinions:Value() then
-        self:TryCastWClear(minions)
+    if self.Menu.clear.useW:Value() and _G.L9Engine:IsSpellReady(_SPELL1) then
+        self:TryCastW()
     end
     
     if self.Menu.clear.useE:Value() and _G.L9Engine:IsSpellReady(_SPELL2) then
@@ -180,11 +178,11 @@ function L9Nilah:DoLastHit()
 end
 
 function L9Nilah:DoMisc()
-    -- Auto W si ennemi proche
+    -- Auto W si alliés proches
     if self.Menu.misc.autoW:Value() and _G.L9Engine:IsSpellReady(_SPELL1) then
-        local nearbyEnemy = self:GetNearestEnemy(300)
-        if nearbyEnemy then
-            self:TryCastW(nearbyEnemy)
+        local allies = self:GetAlliesInRange(600)
+        if #allies > 0 then
+            self:TryCastW()
         end
     end
     
@@ -192,9 +190,10 @@ function L9Nilah:DoMisc()
     if self.Menu.misc.autoE:Value() and _G.L9Engine:IsSpellReady(_SPELL2) then
         local nearbyEnemy = self:GetNearestEnemy(400)
         if nearbyEnemy and myHero.health / myHero.maxHealth < 0.3 then
-            local escapePos = self:GetEscapePosition()
-            if escapePos then
-                Control.CastSpell(_G.L9Engine:GetKeybind("E"), escapePos)
+            -- Dash vers la base ou un allié proche
+            local allies = self:GetAlliesInRange(800)
+            if #allies > 0 then
+                Control.CastSpell(_G.L9Engine:GetKeybind("E"), allies[1])
             end
         end
     end
@@ -244,47 +243,43 @@ function L9Nilah:TryCastQClear(minions)
     return false
 end
 
-function L9Nilah:TryCastW(target)
-    if not target then return false end
-    
-    -- W dash vers l'ennemi
-    local dashPos = self:GetDashPosition(target)
-    if dashPos then
-        Control.CastSpell(_G.L9Engine:GetKeybind("W"), dashPos)
-        return true
-    end
-    return false
+function L9Nilah:TryCastW()
+    -- W buff d'équipe (pas de cible nécessaire)
+    Control.CastSpell(_G.L9Engine:GetKeybind("W"))
+    return true
 end
 
 function L9Nilah:TryCastWClear(minions)
-    if #minions == 0 then return false end
-    
-    -- W dash vers les minions
-    local centerPos = self:GetMinionCenter(minions)
-    if centerPos then
-        Control.CastSpell(_G.L9Engine:GetKeybind("W"), centerPos)
-        return true
-    end
-    return false
+    -- W buff d'équipe (pas de cible nécessaire)
+    Control.CastSpell(_G.L9Engine:GetKeybind("W"))
+    return true
 end
 
 function L9Nilah:TryCastE(target)
     if not target or not _G.L9Engine:IsValidEnemy(target, self.E.Range * 2) then return false end
     
-    local dashPos = self:GetDashPosition(target)
-    if dashPos then
-        Control.CastSpell(_G.L9Engine:GetKeybind("E"), dashPos)
-        return true
-    end
-    return false
+    -- E dash vers la cible
+    Control.CastSpell(_G.L9Engine:GetKeybind("E"), target)
+    return true
 end
 
 function L9Nilah:TryCastEClear(minions)
     if #minions == 0 then return false end
     
-    local centerPos = self:GetMinionCenter(minions)
-    if centerPos then
-        Control.CastSpell(_G.L9Engine:GetKeybind("E"), centerPos)
+    -- E dash vers le minion le plus proche
+    local nearestMinion = nil
+    local minDist = math.huge
+    
+    for _, minion in pairs(minions) do
+        local dist = _G.L9Engine:CalculateDistance(myHero.pos, minion.pos)
+        if dist < minDist then
+            minDist = dist
+            nearestMinion = minion
+        end
+    end
+    
+    if nearestMinion then
+        Control.CastSpell(_G.L9Engine:GetKeybind("E"), nearestMinion)
         return true
     end
     return false
@@ -414,6 +409,20 @@ function L9Nilah:GetNearestEnemy(range)
     return nearest
 end
 
+function L9Nilah:GetAlliesInRange(range)
+    local allies = {}
+    for i = 1, Game.HeroCount() do
+        local hero = Game.Hero(i)
+        if hero and hero.team == myHero.team and not hero.dead and hero.networkID ~= myHero.networkID then
+            local dist = _G.L9Engine:CalculateDistance(myHero.pos, hero.pos)
+            if dist <= range then
+                table.insert(allies, hero)
+            end
+        end
+    end
+    return allies
+end
+
 function L9Nilah:GetMinionCenter(minions)
     if #minions == 0 then return nil end
     
@@ -487,7 +496,7 @@ function L9Nilah:Draw()
     
     -- Afficher stacks passif
     if self.Menu.draw.drawPassive:Value() then
-        local textPos = Draw.WorldToScreen(myPos)
+        local textPos = Renderer.WorldToScreen(myPos)
         if textPos then
             Draw.Text("Passif: " .. passiveStacks .. " stacks", 15, textPos.x - 30, textPos.y - 50, Draw.Color(255, 255, 255, 255))
         end
