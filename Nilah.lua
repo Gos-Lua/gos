@@ -487,7 +487,7 @@ function L9Nilah:Draw()
     
     -- Afficher stacks passif
     if self.Menu.draw.drawPassive:Value() then
-        local textPos = Renderer.WorldToScreen(myPos)
+        local textPos = Draw.WorldToScreen(myPos)
         if textPos then
             Draw.Text("Passif: " .. passiveStacks .. " stacks", 15, textPos.x - 30, textPos.y - 50, Draw.Color(255, 255, 255, 255))
         end
