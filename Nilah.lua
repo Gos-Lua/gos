@@ -212,14 +212,18 @@ end
 function L9Nilah:TryCastQ(target)
     if not target or not _G.L9Engine:IsValidEnemy(target, self.Q.Range) then return false end
     
-    Control.CastSpell(_G.L9Engine:GetKeybind("Q"), target.pos)
-    return true
+    local pred = self:GetQPrediction(target)
+    if pred and pred.hitchance >= 0.6 then
+        Control.CastSpell(_G.L9Engine:GetKeybind("Q"), pred.castPos)
+        return true
+    end
+    return false
 end
 
 function L9Nilah:TryCastQClear(minions)
     if #minions == 0 then return false end
     
-    -- Q sur le minion le plus proche
+    -- Q sur le minion le plus proche avec prediction
     local nearestMinion = nil
     local minDist = math.huge
     
@@ -232,8 +236,11 @@ function L9Nilah:TryCastQClear(minions)
     end
     
     if nearestMinion then
-        Control.CastSpell(_G.L9Engine:GetKeybind("Q"), nearestMinion.pos)
-        return true
+        local pred = self:GetQPrediction(nearestMinion)
+        if pred and pred.hitchance >= 0.5 then
+            Control.CastSpell(_G.L9Engine:GetKeybind("Q"), pred.castPos)
+            return true
+        end
     end
     return false
 end
@@ -283,26 +290,36 @@ end
 function L9Nilah:TryCastR(target)
     if not target or not _G.L9Engine:IsValidEnemy(target, self.R.Range) then return false end
     
-    Control.CastSpell(_G.L9Engine:GetKeybind("R"), target.pos)
-    return true
+    local pred = self:GetRPrediction(target)
+    if pred and pred.hitchance >= 0.7 then
+        Control.CastSpell(_G.L9Engine:GetKeybind("R"), pred.castPos)
+        return true
+    end
+    return false
 end
 
 function L9Nilah:GetQPrediction(target)
+    if not target or not target.valid then return nil end
     if _G.DepressivePrediction then
-        return _G.DepressivePrediction.GetPrediction(target, self.Q.Range, self.Q.Speed, self.Q.Delay, self.Q.Width, myHero.pos, false)
-    elseif _G.SDK then
-        return _G.SDK.Prediction:GetPrediction(target, self.Q.Range, self.Q.Speed, self.Q.Delay, self.Q.Width, myHero.pos, false)
+        local src2D = {x = myHero.pos.x, z = myHero.pos.z}
+        local _, castPos, hitchance = _G.DepressivePrediction.GetPrediction(target, src2D, self.Q.Speed, self.Q.Delay, self.Q.Width)
+        if castPos and castPos.x and castPos.z then
+            return {castPos = Vector(castPos.x, myHero.pos.y, castPos.z), hitchance = hitchance or 0.5}
+        end
     end
-    return nil
+    return {castPos = target.pos, hitchance = 0.5}
 end
 
 function L9Nilah:GetRPrediction(target)
+    if not target or not target.valid then return nil end
     if _G.DepressivePrediction then
-        return _G.DepressivePrediction.GetPrediction(target, self.R.Range, self.R.Speed, self.R.Delay, self.R.Width, myHero.pos, false)
-    elseif _G.SDK then
-        return _G.SDK.Prediction:GetPrediction(target, self.R.Range, self.R.Speed, self.R.Delay, self.R.Width, myHero.pos, false)
+        local src2D = {x = myHero.pos.x, z = myHero.pos.z}
+        local _, castPos, hitchance = _G.DepressivePrediction.GetPrediction(target, src2D, self.R.Speed, self.R.Delay, self.R.Width)
+        if castPos and castPos.x and castPos.z then
+            return {castPos = Vector(castPos.x, myHero.pos.y, castPos.z), hitchance = hitchance or 0.5}
+        end
     end
-    return nil
+    return {castPos = target.pos, hitchance = 0.5}
 end
 
 function L9Nilah:GetDashPosition(target)
