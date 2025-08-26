@@ -199,7 +199,7 @@ function L9Pyke:Combo()
                     
                     -- Release if prediction says we can hit
                     if prediction and prediction[1] and prediction[2] and prediction[2] >= self.Menu.Combo.QPredictionThreshold:Value() then
-                        if range > 400 and myHero.pos:DistanceTo(target.pos) <= range then
+                        if myHero.pos:DistanceTo(target.pos) <= range then
                             if Control.KeyUp and QKeyHeld then Control.KeyUp(HK_Q) end
                             QKeyHeld = false
                         end
@@ -281,7 +281,7 @@ function L9Pyke:Harass()
                     
                     -- Release if prediction says we can hit
                     if prediction and prediction[1] and prediction[2] and prediction[2] >= self.Menu.Combo.QPredictionThreshold:Value() then
-                        if range > 400 and myHero.pos:DistanceTo(target.pos) <= range then
+                        if myHero.pos:DistanceTo(target.pos) <= range then
                             if Control.KeyUp and QKeyHeld then Control.KeyUp(HK_Q) end
                             QKeyHeld = false
                         end
