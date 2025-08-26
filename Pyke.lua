@@ -318,32 +318,43 @@ function L9Pyke:LaneClear()
         local minion = Game.Minion(i)
         if minion.team == TEAM_ENEMY and _G.L9Engine:IsValidEnemy(minion) and myHero.pos:DistanceTo(minion.pos) <= 1100 then
             
-            if self.Menu.Clear.UseQ:Value() and _G.L9Engine:IsSpellReady(_Q) then
+            if self.Menu.Clear.UseQ:Value() then
                 local act = myHero.activeSpell
                 if not myHero.isChanneling then
-                    -- Start charging Q if minion in range
-                    if myHero.pos:DistanceTo(minion.pos) <= 1100 and not QKeyHeld then
+                    -- Start holding Q only if minion in Q range (1100)
+                    local inQRange = minion and myHero.pos:DistanceTo(minion.pos) <= 1100
+                    if _G.L9Engine:IsSpellReady(_Q) and not QKeyHeld and inQRange then
                         if Control.KeyDown then Control.KeyDown(HK_Q) end
                         QKeyHeld = true
                         QStartTime = Game.Timer()
+                    elseif QKeyHeld and not inQRange then
+                        -- Release early if minion moved out of range and we're not channeling yet (safety)
+                        if Control.KeyUp then Control.KeyUp(HK_Q) end
+                        QKeyHeld = false
                     end
                 else
                     if act and act.name == "PykeQ" then
-                        local chargeTime = Game.Timer() - QStartTime
+                        local tnow = Game.Timer()
+                        local elapsedSinceEnd = (tnow - (act.castEndTime or tnow))
+                        -- Release if max charge reached OR minion is in range to hit
+                        local chargeTime = tnow - QStartTime
                         local range = math.max(math.min(chargeTime, 1.25) * 880, 400)
+                        local shouldRelease = false
                         
-                        -- Release if minion is in range to hit OR max charge reached
                         if range > 400 and myHero.pos:DistanceTo(minion.pos) <= range then
-                            if Control.KeyUp and QKeyHeld then Control.KeyUp(HK_Q) end
-                            QKeyHeld = false
+                            shouldRelease = true
                         end
                         
-                        -- Safety: release at max charge time
-                        if chargeTime >= self.Menu.Combo.QMaxCharge:Value() then
+                        if elapsedSinceEnd >= self.Menu.Combo.QMaxCharge:Value() or shouldRelease then
                             if Control.KeyUp and QKeyHeld then Control.KeyUp(HK_Q) end
                             QKeyHeld = false
                         end
                     end
+                end
+                -- Safety: if we somehow hold longer than 3s (failsafe) release anyway
+                if QKeyHeld and (Game.Timer() - QStartTime) > 3.0 then
+                    if Control.KeyUp then Control.KeyUp(HK_Q) end
+                    QKeyHeld = false
                 end
             end
             
