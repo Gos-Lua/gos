@@ -61,12 +61,12 @@ local QStartTime = 0
 local QKeyHeld = false -- tracking KeyDown state for Q
 local QMaxCharge = 1.25 -- seconds (max hold time for Q)
 
-local function GetPrediction(target, spell)
+local function GetPrediction(target, spell, currentRange)
     if not target or not target.valid then return nil, 0 end
     
     if CheckPredictionSystem() then
         local spellData = {
-            range = SPELL_RANGE[spell],
+            range = currentRange or SPELL_RANGE[spell],
             speed = SPELL_SPEED[spell],
             delay = SPELL_DELAY[spell],
             radius = SPELL_RADIUS[spell]
@@ -195,7 +195,7 @@ function L9Pyke:Combo()
                 if act and act.name == "PykeQ" then
                     local chargeTime = Game.Timer() - QStartTime
                     local range = math.max(math.min(chargeTime, 1.25) * 880, 400)
-                    local prediction = GetPrediction(target, "Q")
+                    local prediction = GetPrediction(target, "Q", range)
                     
                     -- Release if prediction says we can hit
                     if prediction and prediction[1] and prediction[2] and prediction[2] >= self.Menu.Combo.QPredictionThreshold:Value() then
@@ -277,7 +277,7 @@ function L9Pyke:Harass()
                 if act and act.name == "PykeQ" then
                     local chargeTime = Game.Timer() - QStartTime
                     local range = math.max(math.min(chargeTime, 1.25) * 880, 400)
-                    local prediction = GetPrediction(target, "Q")
+                    local prediction = GetPrediction(target, "Q", range)
                     
                     -- Release if prediction says we can hit
                     if prediction and prediction[1] and prediction[2] and prediction[2] >= self.Menu.Combo.QPredictionThreshold:Value() then
