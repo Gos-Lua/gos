@@ -58,6 +58,8 @@ local SPELL_RADIUS = {
 
 local QCharging = false
 local QStartTime = 0
+local QKeyHeld = false -- tracking KeyDown state for Q
+local QMaxCharge = 1.25 -- seconds (max hold time for Q)
 
 local function GetPrediction(target, spell)
     if not target or not target.valid then return nil, 0 end
@@ -111,6 +113,7 @@ function L9Pyke:LoadMenu()
     
     self.Menu:MenuElement({type = MENU, id = "Combo", name = "Combo"})
     self.Menu.Combo:MenuElement({id = "UseQ", name = "[Q] Bone Skewer", value = true})
+    self.Menu.Combo:MenuElement({id = "QMaxCharge", name = "Q Max Charge Time (s)", value = 1.25, min = 0.5, max = 2.0, step = 0.1})
     self.Menu.Combo:MenuElement({id = "UseE", name = "[E] Phantom Undertow", value = true})
     self.Menu.Combo:MenuElement({id = "UseR", name = "[R] Death From Below", value = true})
     self.Menu.Combo:MenuElement({id = "RCount", name = "Min enemies for R", value = 1, min = 1, max = 5})
@@ -139,11 +142,17 @@ function L9Pyke:LoadMenu()
     self.Menu.Drawing:MenuElement({id = "DrawQ", name = "Draw [Q] Range", value = false})
     self.Menu.Drawing:MenuElement({id = "DrawE", name = "Draw [E] Range", value = false})
     self.Menu.Drawing:MenuElement({id = "DrawR", name = "Draw [R] Range", value = false})
+    self.Menu.Drawing:MenuElement({id = "DrawQCharge", name = "Draw Q Charge Status", value = true})
     self.Menu.Drawing:MenuElement({id = "Kill", name = "Draw Killable Targets", value = true})
 end
 
 function L9Pyke:Tick()
-    if myHero.dead or Game.IsChatOpen() then return end
+    if myHero.dead or Game.IsChatOpen() then 
+        -- Clean up Q key state if hero is dead or chat is open
+        if QKeyHeld and Control.KeyUp then Control.KeyUp(HK_Q) end
+        QKeyHeld = false
+        return 
+    end
     
     if not CheckPredictionSystem() then return end
     
@@ -166,39 +175,55 @@ function L9Pyke:Combo()
     if not target then return end
     
     if _G.L9Engine:IsValidEnemy(target) then
-        if self.Menu.Combo.UseQ:Value() and _G.L9Engine:IsSpellReady(_Q) and myHero.pos:DistanceTo(target.pos) <= 1100 then
-            if myHero.activeSpell.valid and myHero.activeSpell.name == "PykeQ" then
-                local chargeTime = Game.Timer() - QStartTime
-                if chargeTime > 3 then 
-                    Control.KeyUp(HK_Q)
-                    QCharging = false
-                    return 
-                end
-                
-                local range = math.max(math.min(chargeTime, 1.25) * 880, 400)
-                local prediction = GetPrediction(target, "Q")
-                if prediction and prediction[1] and prediction[2] and prediction[2] >= 2 then
-                    if range > 400 and myHero.pos:DistanceTo(target.pos) <= range then
-                        Control.KeyUp(HK_Q)
-                        QCharging = false
-                        return
-                    end
+        -- Q charge logic using KeyDown/KeyUp system like Vladimir E
+        if self.Menu.Combo.UseQ:Value() then
+            local act = myHero.activeSpell
+            if not myHero.isChanneling then
+                -- Start holding Q only if target in Q range (1100)
+                local inQRange = target and myHero.pos:DistanceTo(target.pos) <= 1100
+                if _G.L9Engine:IsSpellReady(_Q) and not QKeyHeld and inQRange then
+                    if Control.KeyDown then Control.KeyDown(HK_Q) end
+                    QKeyHeld = true
+                    QStartTime = Game.Timer()
+                elseif QKeyHeld and not inQRange then
+                    -- Release early if target moved out of range and we're not channeling yet (safety)
+                    if Control.KeyUp then Control.KeyUp(HK_Q) end
+                    QKeyHeld = false
                 end
             else
-                if not QCharging then
-                    Control.KeyDown(HK_Q)
-                    QCharging = true
-                    QStartTime = Game.Timer()
+                if act and act.name == "PykeQ" then
+                    local tnow = Game.Timer()
+                    local elapsedSinceEnd = (tnow - (act.castEndTime or tnow))
+                    -- Release if max charge reached OR target is in range to hit
+                    local chargeTime = tnow - QStartTime
+                    local range = math.max(math.min(chargeTime, 1.25) * 880, 400)
+                    local prediction = GetPrediction(target, "Q")
+                    local shouldRelease = false
+                    
+                    if prediction and prediction[1] and prediction[2] and prediction[2] >= 2 then
+                        if range > 400 and myHero.pos:DistanceTo(target.pos) <= range then
+                            shouldRelease = true
+                        end
+                    end
+                    
+                    if elapsedSinceEnd >= self.Menu.Combo.QMaxCharge:Value() or shouldRelease then
+                        if Control.KeyUp and QKeyHeld then Control.KeyUp(HK_Q) end
+                        QKeyHeld = false
+                    end
                 end
             end
-        else
-            if QCharging then
-                Control.KeyUp(HK_Q)
-                QCharging = false
+            -- Safety: if we somehow hold longer than 3s (failsafe) release anyway
+            if QKeyHeld and (Game.Timer() - QStartTime) > 3.0 then
+                if Control.KeyUp then Control.KeyUp(HK_Q) end
+                QKeyHeld = false
             end
+        else
+            -- Release Q if menu disabled
+            if QKeyHeld and Control.KeyUp then Control.KeyUp(HK_Q) end
+            QKeyHeld = false
         end
         
-        if myHero.pos:DistanceTo(target.pos) <= 550 and self.Menu.Combo.UseE:Value() and _G.L9Engine:IsSpellReady(_E) and not QCharging then
+        if myHero.pos:DistanceTo(target.pos) <= 550 and self.Menu.Combo.UseE:Value() and _G.L9Engine:IsSpellReady(_E) and not QKeyHeld then
             local prediction = GetPrediction(target, "E")
             if prediction and prediction[1] and prediction[2] and prediction[2] >= 2 then
                 Control.CastSpell(HK_E, Vector(prediction[1].x, myHero.pos.y, prediction[1].z))
@@ -243,39 +268,55 @@ function L9Pyke:Harass()
     if not target then return end
     
     if _G.L9Engine:IsValidEnemy(target) then
-        if self.Menu.Harass.UseQ:Value() and _G.L9Engine:IsSpellReady(_Q) and myHero.pos:DistanceTo(target.pos) <= 1100 then
-            if myHero.activeSpell.valid and myHero.activeSpell.name == "PykeQ" then
-                local chargeTime = Game.Timer() - QStartTime
-                if chargeTime > 3 then 
-                    Control.KeyUp(HK_Q)
-                    QCharging = false
-                    return 
-                end
-                
-                local range = math.max(math.min(chargeTime, 1.25) * 880, 400)
-                local prediction = GetPrediction(target, "Q")
-                if prediction and prediction[1] and prediction[2] and prediction[2] >= 2 then
-                    if range > 400 and myHero.pos:DistanceTo(target.pos) <= range then
-                        Control.KeyUp(HK_Q)
-                        QCharging = false
-                        return
-                    end
+        -- Q charge logic using KeyDown/KeyUp system like Vladimir E
+        if self.Menu.Harass.UseQ:Value() then
+            local act = myHero.activeSpell
+            if not myHero.isChanneling then
+                -- Start holding Q only if target in Q range (1100)
+                local inQRange = target and myHero.pos:DistanceTo(target.pos) <= 1100
+                if _G.L9Engine:IsSpellReady(_Q) and not QKeyHeld and inQRange then
+                    if Control.KeyDown then Control.KeyDown(HK_Q) end
+                    QKeyHeld = true
+                    QStartTime = Game.Timer()
+                elseif QKeyHeld and not inQRange then
+                    -- Release early if target moved out of range and we're not channeling yet (safety)
+                    if Control.KeyUp then Control.KeyUp(HK_Q) end
+                    QKeyHeld = false
                 end
             else
-                if not QCharging then
-                    Control.KeyDown(HK_Q)
-                    QCharging = true
-                    QStartTime = Game.Timer()
+                if act and act.name == "PykeQ" then
+                    local tnow = Game.Timer()
+                    local elapsedSinceEnd = (tnow - (act.castEndTime or tnow))
+                    -- Release if max charge reached OR target is in range to hit
+                    local chargeTime = tnow - QStartTime
+                    local range = math.max(math.min(chargeTime, 1.25) * 880, 400)
+                    local prediction = GetPrediction(target, "Q")
+                    local shouldRelease = false
+                    
+                    if prediction and prediction[1] and prediction[2] and prediction[2] >= 2 then
+                        if range > 400 and myHero.pos:DistanceTo(target.pos) <= range then
+                            shouldRelease = true
+                        end
+                    end
+                    
+                    if elapsedSinceEnd >= self.Menu.Combo.QMaxCharge:Value() or shouldRelease then
+                        if Control.KeyUp and QKeyHeld then Control.KeyUp(HK_Q) end
+                        QKeyHeld = false
+                    end
                 end
             end
-        else
-            if QCharging then
-                Control.KeyUp(HK_Q)
-                QCharging = false
+            -- Safety: if we somehow hold longer than 3s (failsafe) release anyway
+            if QKeyHeld and (Game.Timer() - QStartTime) > 3.0 then
+                if Control.KeyUp then Control.KeyUp(HK_Q) end
+                QKeyHeld = false
             end
+        else
+            -- Release Q if menu disabled
+            if QKeyHeld and Control.KeyUp then Control.KeyUp(HK_Q) end
+            QKeyHeld = false
         end
         
-        if myHero.pos:DistanceTo(target.pos) <= 550 and self.Menu.Harass.UseE:Value() and _G.L9Engine:IsSpellReady(_E) and not QCharging then
+        if myHero.pos:DistanceTo(target.pos) <= 550 and self.Menu.Harass.UseE:Value() and _G.L9Engine:IsSpellReady(_E) and not QKeyHeld then
             local prediction = GetPrediction(target, "E")
             if prediction and prediction[1] and prediction[2] and prediction[2] >= 2 then
                 Control.CastSpell(HK_E, Vector(prediction[1].x, myHero.pos.y, prediction[1].z))
@@ -293,31 +334,47 @@ function L9Pyke:LaneClear()
         local minion = Game.Minion(i)
         if minion.team == TEAM_ENEMY and _G.L9Engine:IsValidEnemy(minion) and myHero.pos:DistanceTo(minion.pos) <= 1100 then
             
-            if self.Menu.Clear.UseQ:Value() and _G.L9Engine:IsSpellReady(_Q) then
-                if myHero.activeSpell.valid and myHero.activeSpell.name == "PykeQ" then
-                    local chargeTime = Game.Timer() - QStartTime
-                    if chargeTime > 3 then 
-                        Control.KeyUp(HK_Q)
-                        QCharging = false
-                        return 
-                    end
-                    
-                    local range = math.max(math.min(chargeTime, 1.25) * 880, 400)
-                    if myHero.pos:DistanceTo(minion.pos) <= range then
-                        Control.KeyUp(HK_Q)
-                        QCharging = false
-                        return
+            if self.Menu.Clear.UseQ:Value() then
+                local act = myHero.activeSpell
+                if not myHero.isChanneling then
+                    -- Start holding Q only if minion in Q range (1100)
+                    local inQRange = minion and myHero.pos:DistanceTo(minion.pos) <= 1100
+                    if _G.L9Engine:IsSpellReady(_Q) and not QKeyHeld and inQRange then
+                        if Control.KeyDown then Control.KeyDown(HK_Q) end
+                        QKeyHeld = true
+                        QStartTime = Game.Timer()
+                    elseif QKeyHeld and not inQRange then
+                        -- Release early if minion moved out of range and we're not channeling yet (safety)
+                        if Control.KeyUp then Control.KeyUp(HK_Q) end
+                        QKeyHeld = false
                     end
                 else
-                    if not QCharging then
-                        Control.KeyDown(HK_Q)
-                        QCharging = true
-                        QStartTime = Game.Timer()
+                    if act and act.name == "PykeQ" then
+                        local tnow = Game.Timer()
+                        local elapsedSinceEnd = (tnow - (act.castEndTime or tnow))
+                        -- Release if max charge reached OR minion is in range to hit
+                        local chargeTime = tnow - QStartTime
+                        local range = math.max(math.min(chargeTime, 1.25) * 880, 400)
+                        local shouldRelease = false
+                        
+                        if range > 400 and myHero.pos:DistanceTo(minion.pos) <= range then
+                            shouldRelease = true
+                        end
+                        
+                        if elapsedSinceEnd >= self.Menu.Combo.QMaxCharge:Value() or shouldRelease then
+                            if Control.KeyUp and QKeyHeld then Control.KeyUp(HK_Q) end
+                            QKeyHeld = false
+                        end
                     end
+                end
+                -- Safety: if we somehow hold longer than 3s (failsafe) release anyway
+                if QKeyHeld and (Game.Timer() - QStartTime) > 3.0 then
+                    if Control.KeyUp then Control.KeyUp(HK_Q) end
+                    QKeyHeld = false
                 end
             end
             
-            if self.Menu.Clear.UseE:Value() and _G.L9Engine:IsSpellReady(_E) and not QCharging then
+            if self.Menu.Clear.UseE:Value() and _G.L9Engine:IsSpellReady(_E) and not QKeyHeld then
                 local prediction = GetPrediction(minion, "E")
                 if prediction and prediction[1] and prediction[2] and prediction[2] >= 1 then
                     Control.CastSpell(HK_E, Vector(prediction[1].x, myHero.pos.y, prediction[1].z))
@@ -335,31 +392,47 @@ function L9Pyke:JungleClear()
         local minion = Game.Minion(i)
         if minion.team == TEAM_JUNGLE and _G.L9Engine:IsValidEnemy(minion) and myHero.pos:DistanceTo(minion.pos) <= 1100 then
             
-            if self.Menu.JClear.UseQ:Value() and _G.L9Engine:IsSpellReady(_Q) then
-                if myHero.activeSpell.valid and myHero.activeSpell.name == "PykeQ" then
-                    local chargeTime = Game.Timer() - QStartTime
-                    if chargeTime > 3 then 
-                        Control.KeyUp(HK_Q)
-                        QCharging = false
-                        return 
-                    end
-                    
-                    local range = math.max(math.min(chargeTime, 1.25) * 880, 400)
-                    if myHero.pos:DistanceTo(minion.pos) <= range then
-                        Control.KeyUp(HK_Q)
-                        QCharging = false
-                        return
+            if self.Menu.JClear.UseQ:Value() then
+                local act = myHero.activeSpell
+                if not myHero.isChanneling then
+                    -- Start holding Q only if minion in Q range (1100)
+                    local inQRange = minion and myHero.pos:DistanceTo(minion.pos) <= 1100
+                    if _G.L9Engine:IsSpellReady(_Q) and not QKeyHeld and inQRange then
+                        if Control.KeyDown then Control.KeyDown(HK_Q) end
+                        QKeyHeld = true
+                        QStartTime = Game.Timer()
+                    elseif QKeyHeld and not inQRange then
+                        -- Release early if minion moved out of range and we're not channeling yet (safety)
+                        if Control.KeyUp then Control.KeyUp(HK_Q) end
+                        QKeyHeld = false
                     end
                 else
-                    if not QCharging then
-                        Control.KeyDown(HK_Q)
-                        QCharging = true
-                        QStartTime = Game.Timer()
+                    if act and act.name == "PykeQ" then
+                        local tnow = Game.Timer()
+                        local elapsedSinceEnd = (tnow - (act.castEndTime or tnow))
+                        -- Release if max charge reached OR minion is in range to hit
+                        local chargeTime = tnow - QStartTime
+                        local range = math.max(math.min(chargeTime, 1.25) * 880, 400)
+                        local shouldRelease = false
+                        
+                        if range > 400 and myHero.pos:DistanceTo(minion.pos) <= range then
+                            shouldRelease = true
+                        end
+                        
+                        if elapsedSinceEnd >= self.Menu.Combo.QMaxCharge:Value() or shouldRelease then
+                            if Control.KeyUp and QKeyHeld then Control.KeyUp(HK_Q) end
+                            QKeyHeld = false
+                        end
                     end
+                end
+                -- Safety: if we somehow hold longer than 3s (failsafe) release anyway
+                if QKeyHeld and (Game.Timer() - QStartTime) > 3.0 then
+                    if Control.KeyUp then Control.KeyUp(HK_Q) end
+                    QKeyHeld = false
                 end
             end
             
-            if self.Menu.JClear.UseE:Value() and _G.L9Engine:IsSpellReady(_E) and not QCharging then
+            if self.Menu.JClear.UseE:Value() and _G.L9Engine:IsSpellReady(_E) and not QKeyHeld then
                 local prediction = GetPrediction(minion, "E")
                 if prediction and prediction[1] and prediction[2] and prediction[2] >= 1 then
                     Control.CastSpell(HK_E, Vector(prediction[1].x, myHero.pos.y, prediction[1].z))
@@ -388,29 +461,45 @@ function L9Pyke:KillSteal()
         if self.Menu.ks.UseQ:Value() and _G.L9Engine:IsSpellReady(_Q) and myHero.pos:DistanceTo(target.pos) <= 1100 then
             local QDmg = getdmg("Q", target, myHero) or 0
             if target.health <= QDmg then
-                if myHero.activeSpell.valid and myHero.activeSpell.name == "PykeQ" then
-                    local chargeTime = Game.Timer() - QStartTime
-                    if chargeTime > 3 then 
-                        Control.KeyUp(HK_Q)
-                        QCharging = false
-                        return 
-                    end
-                    
-                    local range = math.max(math.min(chargeTime, 1.25) * 880, 400)
-                    local prediction = GetPrediction(target, "Q")
-                    if prediction and prediction[1] and prediction[2] and prediction[2] >= 1 then
-                        if range > 400 and myHero.pos:DistanceTo(target.pos) <= range then
-                            Control.KeyUp(HK_Q)
-                            QCharging = false
-                            return
-                        end
+                local act = myHero.activeSpell
+                if not myHero.isChanneling then
+                    -- Start holding Q only if target in Q range (1100)
+                    local inQRange = target and myHero.pos:DistanceTo(target.pos) <= 1100
+                    if not QKeyHeld and inQRange then
+                        if Control.KeyDown then Control.KeyDown(HK_Q) end
+                        QKeyHeld = true
+                        QStartTime = Game.Timer()
+                    elseif QKeyHeld and not inQRange then
+                        -- Release early if target moved out of range and we're not channeling yet (safety)
+                        if Control.KeyUp then Control.KeyUp(HK_Q) end
+                        QKeyHeld = false
                     end
                 else
-                    if not QCharging then
-                        Control.KeyDown(HK_Q)
-                        QCharging = true
-                        QStartTime = Game.Timer()
+                    if act and act.name == "PykeQ" then
+                        local tnow = Game.Timer()
+                        local elapsedSinceEnd = (tnow - (act.castEndTime or tnow))
+                        -- Release if max charge reached OR target is in range to hit
+                        local chargeTime = tnow - QStartTime
+                        local range = math.max(math.min(chargeTime, 1.25) * 880, 400)
+                        local prediction = GetPrediction(target, "Q")
+                        local shouldRelease = false
+                        
+                        if prediction and prediction[1] and prediction[2] and prediction[2] >= 1 then
+                            if range > 400 and myHero.pos:DistanceTo(target.pos) <= range then
+                                shouldRelease = true
+                            end
+                        end
+                        
+                        if elapsedSinceEnd >= self.Menu.Combo.QMaxCharge:Value() or shouldRelease then
+                            if Control.KeyUp and QKeyHeld then Control.KeyUp(HK_Q) end
+                            QKeyHeld = false
+                        end
                     end
+                end
+                -- Safety: if we somehow hold longer than 3s (failsafe) release anyway
+                if QKeyHeld and (Game.Timer() - QStartTime) > 3.0 then
+                    if Control.KeyUp then Control.KeyUp(HK_Q) end
+                    QKeyHeld = false
                 end
             end
         end
@@ -442,6 +531,24 @@ function L9Pyke:Draw()
     
     if self.Menu.Drawing.DrawR:Value() and _G.L9Engine:IsSpellReady(_R) then
         Draw.Circle(myHero.pos, SPELL_RANGE.R, 1, Draw.Color(255, 0, 0, 255))
+    end
+    
+    -- Draw Q charge status
+    if self.Menu.Drawing.DrawQCharge:Value() then
+        local act = myHero.activeSpell
+        if act and act.valid and act.name == "PykeQ" then
+            local chargeTime = Game.Timer() - QStartTime
+            local maxCharge = self.Menu.Combo.QMaxCharge:Value()
+            local progress = math.min(1, chargeTime / maxCharge)
+            local chargeText = string.format("Q Charging: %.1fs/%.1fs", chargeTime, maxCharge)
+            local color = Draw.Color(255, 255, 255, 0)
+            if progress >= 1 then
+                color = Draw.Color(255, 255, 0, 0) -- Yellow when fully charged
+            end
+            Draw.Text(chargeText, 14, myHero.pos:To2D().x - 60, myHero.pos:To2D().y - 80, color)
+        elseif QKeyHeld then
+            Draw.Text("Q Key Held", 14, myHero.pos:To2D().x - 40, myHero.pos:To2D().y - 80, Draw.Color(255, 0, 255, 0))
+        end
     end
     
     if self.Menu.Drawing.Kill:Value() then
