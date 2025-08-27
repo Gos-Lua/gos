@@ -344,16 +344,15 @@ function L9Pyke:Combo()
                     local chargeTime = Game.Timer() - QStartTime
                     local range = math.max(math.min(chargeTime, 1.25) * 880, 400)
                     
-                    -- Release conditions (Vladimir style)
+                    -- Release conditions (Vladimir style) - IMPROVED
                     local shouldRelease = false
+                    local distance = myHero.pos:DistanceTo(target.pos)
                     
-                    -- Good prediction (Taliyah style precision) - ADAPTIVE THRESHOLD
+                    -- Good prediction (Taliyah style precision) - IMPROVED
                     local prediction = GetPrediction(target, "Q", range)
                     if prediction and prediction[1] and prediction[2] then
-                        local distance = myHero.pos:DistanceTo(target.pos)
-                        
-                        -- Different prediction thresholds based on distance
-                        local predictionThreshold = 2 -- Default
+                        -- Use prediction if available and good enough
+                        local predictionThreshold = 2
                         if distance > 800 then
                             predictionThreshold = 1 -- More aggressive for long range
                         elseif distance > 600 then
@@ -365,6 +364,9 @@ function L9Pyke:Combo()
                         if prediction[2] >= predictionThreshold and distance <= range then
                             shouldRelease = true
                         end
+                    elseif distance <= range then
+                        -- If no prediction available but target in range, release anyway
+                        shouldRelease = true
                     end
                     
                     -- Max charge reached
@@ -373,7 +375,7 @@ function L9Pyke:Combo()
                     end
                     
                     -- Close range auto-release (Vladimir style)
-                    if myHero.pos:DistanceTo(target.pos) <= 600 and chargeTime >= 0.5 then
+                    if distance <= 600 and chargeTime >= 0.5 then
                         shouldRelease = true
                     end
                     
@@ -462,16 +464,15 @@ function L9Pyke:Harass()
                     local chargeTime = Game.Timer() - QStartTime
                     local range = math.max(math.min(chargeTime, 1.25) * 880, 400)
                     
-                    -- Release conditions (Vladimir style)
+                    -- Release conditions (Vladimir style) - IMPROVED
                     local shouldRelease = false
+                    local distance = myHero.pos:DistanceTo(target.pos)
                     
-                    -- Good prediction (Taliyah style precision) - ADAPTIVE THRESHOLD
+                    -- Good prediction (Taliyah style precision) - IMPROVED
                     local prediction = GetPrediction(target, "Q", range)
                     if prediction and prediction[1] and prediction[2] then
-                        local distance = myHero.pos:DistanceTo(target.pos)
-                        
-                        -- Different prediction thresholds based on distance
-                        local predictionThreshold = 2 -- Default
+                        -- Use prediction if available and good enough
+                        local predictionThreshold = 2
                         if distance > 800 then
                             predictionThreshold = 1 -- More aggressive for long range
                         elseif distance > 600 then
@@ -483,6 +484,9 @@ function L9Pyke:Harass()
                         if prediction[2] >= predictionThreshold and distance <= range then
                             shouldRelease = true
                         end
+                    elseif distance <= range then
+                        -- If no prediction available but target in range, release anyway
+                        shouldRelease = true
                     end
                     
                     -- Max charge reached
@@ -491,7 +495,7 @@ function L9Pyke:Harass()
                     end
                     
                     -- Close range auto-release (Vladimir style)
-                    if myHero.pos:DistanceTo(target.pos) <= 600 and chargeTime >= 0.5 then
+                    if distance <= 600 and chargeTime >= 0.5 then
                         shouldRelease = true
                     end
                     
