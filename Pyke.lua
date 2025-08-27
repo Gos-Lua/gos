@@ -337,6 +337,7 @@ function L9Pyke:Combo()
                     end
                 else
                     -- Handle ongoing charge
+                    local act = myHero.activeSpell
                     if act and act.name == "PykeQ" then
                         local chargeTime = Game.Timer() - QStartTime
                         local range = math.max(math.min(chargeTime, 1.25) * 880, 400)
@@ -439,6 +440,7 @@ function L9Pyke:Harass()
                     end
                 else
                     -- Handle ongoing charge
+                    local act = myHero.activeSpell
                     if act and act.name == "PykeQ" then
                         local chargeTime = Game.Timer() - QStartTime
                         local range = math.max(math.min(chargeTime, 1.25) * 880, 400)
