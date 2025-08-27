@@ -720,8 +720,6 @@ end
 function L9Pyke:Draw()
     if myHero.dead then return end
     
-    if not CheckPredictionSystem() then return end
-    
     if self.Menu.Drawing.DrawQ:Value() and _G.L9Engine:IsSpellReady(_Q) then
         Draw.Circle(myHero.pos, SPELL_RANGE.Q, 1, Draw.Color(255, 255, 0, 0))
     end
