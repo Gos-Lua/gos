@@ -20,7 +20,8 @@ DelayAction(function()
 end, 1.0)
 
 local function CheckPredictionSystem()
-    if not PredictionLoaded or not _G.DepressivePrediction then
+    -- More permissive check - only return false if absolutely no prediction system is available
+    if not _G.DepressivePrediction then
         return false
     end
     
@@ -71,16 +72,18 @@ local nextVectorCast = 0
 local function GetPrediction(target, spell, currentRange)
     if not target or not target.valid then return nil, 0 end
     
-    if CheckPredictionSystem() then
-        local spellData = {
-            range = currentRange or SPELL_RANGE[spell],
-            speed = SPELL_SPEED[spell],
-            delay = SPELL_DELAY[spell],
-            radius = SPELL_RADIUS[spell]
-        }
-        
-        local sourcePos2D = {x = myHero.pos.x, z = myHero.pos.z}
-        
+    -- Always try to get prediction, don't rely on CheckPredictionSystem()
+    local spellData = {
+        range = currentRange or SPELL_RANGE[spell],
+        speed = SPELL_SPEED[spell],
+        delay = SPELL_DELAY[spell],
+        radius = SPELL_RADIUS[spell]
+    }
+    
+    local sourcePos2D = {x = myHero.pos.x, z = myHero.pos.z}
+    
+    -- Try to get prediction from DepressivePrediction
+    if _G.DepressivePrediction and _G.DepressivePrediction.GetPrediction then
         local unitPos, castPos, timeToHit = _G.DepressivePrediction.GetPrediction(
             target,
             sourcePos2D,
