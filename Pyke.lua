@@ -347,10 +347,22 @@ function L9Pyke:Combo()
                     -- Release conditions (Vladimir style)
                     local shouldRelease = false
                     
-                    -- Good prediction (Taliyah style precision)
+                    -- Good prediction (Taliyah style precision) - ADAPTIVE THRESHOLD
                     local prediction = GetPrediction(target, "Q", range)
-                    if prediction and prediction[1] and prediction[2] and prediction[2] >= 2 then
-                        if myHero.pos:DistanceTo(target.pos) <= range then
+                    if prediction and prediction[1] and prediction[2] then
+                        local distance = myHero.pos:DistanceTo(target.pos)
+                        
+                        -- Different prediction thresholds based on distance
+                        local predictionThreshold = 2 -- Default
+                        if distance > 800 then
+                            predictionThreshold = 1 -- More aggressive for long range
+                        elseif distance > 600 then
+                            predictionThreshold = 2 -- Medium for mid range
+                        else
+                            predictionThreshold = 3 -- Conservative for close range
+                        end
+                        
+                        if prediction[2] >= predictionThreshold and distance <= range then
                             shouldRelease = true
                         end
                     end
@@ -453,10 +465,22 @@ function L9Pyke:Harass()
                     -- Release conditions (Vladimir style)
                     local shouldRelease = false
                     
-                    -- Good prediction (Taliyah style precision)
+                    -- Good prediction (Taliyah style precision) - ADAPTIVE THRESHOLD
                     local prediction = GetPrediction(target, "Q", range)
-                    if prediction and prediction[1] and prediction[2] and prediction[2] >= 2 then
-                        if myHero.pos:DistanceTo(target.pos) <= range then
+                    if prediction and prediction[1] and prediction[2] then
+                        local distance = myHero.pos:DistanceTo(target.pos)
+                        
+                        -- Different prediction thresholds based on distance
+                        local predictionThreshold = 2 -- Default
+                        if distance > 800 then
+                            predictionThreshold = 1 -- More aggressive for long range
+                        elseif distance > 600 then
+                            predictionThreshold = 2 -- Medium for mid range
+                        else
+                            predictionThreshold = 3 -- Conservative for close range
+                        end
+                        
+                        if prediction[2] >= predictionThreshold and distance <= range then
                             shouldRelease = true
                         end
                     end
