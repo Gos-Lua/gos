@@ -61,6 +61,12 @@ local QStartTime = 0
 local QKeyHeld = false -- tracking KeyDown state for Q
 local QMaxCharge = 1.25 -- seconds (max hold time for Q)
 
+-- Vector casting system for Q (based on Taliyah W system)
+local vectorCast = {}
+local mouseReturnPos = Game.cursorPos()
+local mouseCurrentPos = Game.cursorPos()
+local nextVectorCast = 0
+
 local function GetPrediction(target, spell, currentRange)
     if not target or not target.valid then return nil, 0 end
     
@@ -101,6 +107,67 @@ local function GetUltDamage()
     local baseDamage = 250 + (level - 1) * 200
     local bonusAD = myHero.bonusDamage
     return baseDamage + (bonusAD * 0.8)
+end
+
+-- Vector casting function for Q (based on Taliyah system)
+local function CastVectorQ(pos1, pos2)
+    if nextVectorCast > Game.Timer() then 
+        return 
+    end
+    nextVectorCast = Game.Timer() + 0.5
+    
+    -- Disable orbwalker during cast
+    if _G.SDK and _G.SDK.Orbwalker then
+        _G.SDK.Orbwalker:SetMovement(false)
+        _G.SDK.Orbwalker:SetAttack(false)
+    elseif _G.DepressiveOrbwalker then
+        _G.DepressiveOrbwalker:SetMode(_G.DepressiveOrbwalker.MODES.NONE)
+    elseif _G.GOS then
+        _G.GOS:BlockOrbwalker(true)
+    end
+    
+    -- Create vector cast sequence
+    vectorCast[#vectorCast + 1] = function() 
+        mouseReturnPos = Game.cursorPos()  -- Save original position
+        mouseCurrentPos = pos1
+        Control.SetCursorPos(pos1)  -- Move to target position
+    end
+    
+    vectorCast[#vectorCast + 1] = function() 
+        Control.KeyDown(HK_Q)  -- Start charging Q
+        QKeyHeld = true
+        QStartTime = Game.Timer()
+    end
+    
+    vectorCast[#vectorCast + 1] = function() 
+        local deltaMousePos = Game.cursorPos() - mouseCurrentPos
+        mouseReturnPos = mouseReturnPos + deltaMousePos
+        Control.SetCursorPos(pos2)  -- Move to cast direction
+        mouseCurrentPos = pos2
+    end
+    
+    vectorCast[#vectorCast + 1] = function()
+        Control.KeyUp(HK_Q)  -- Release Q
+        QKeyHeld = false
+    end
+    
+    vectorCast[#vectorCast + 1] = function()	
+        local deltaMousePos = Game.cursorPos() - mouseCurrentPos
+        mouseReturnPos = mouseReturnPos + deltaMousePos
+        Control.SetCursorPos(mouseReturnPos)  -- Return to original position
+    end
+    
+    vectorCast[#vectorCast + 1] = function() 
+        -- Re-enable orbwalker
+        if _G.SDK and _G.SDK.Orbwalker then
+            _G.SDK.Orbwalker:SetMovement(true)
+            _G.SDK.Orbwalker:SetAttack(true)
+        elseif _G.DepressiveOrbwalker then
+            _G.DepressiveOrbwalker:SetMode(_G.DepressiveOrbwalker.MODES.COMBO)
+        elseif _G.GOS then
+            _G.GOS:BlockOrbwalker(false)
+        end
+    end		
 end
 
 class "L9Pyke"
@@ -162,6 +229,13 @@ function L9Pyke:Tick()
     
     if not CheckPredictionSystem() then return end
     
+    -- Vector casting system for Q
+    if #vectorCast > 0 then
+        vectorCast[1]()
+        table.remove(vectorCast, 1)
+        return
+    end
+    
     local Mode = _G.L9Engine:GetCurrentMode()
     
     if Mode == "Combo" then
@@ -184,12 +258,15 @@ function L9Pyke:Combo()
         -- Q charge logic - charge until prediction says we can hit
         if self.Menu.Combo.UseQ:Value() and _G.L9Engine:IsSpellReady(_Q) then
             local act = myHero.activeSpell
-            if not myHero.isChanneling then
-                -- Start charging Q if target in range
-                if myHero.pos:DistanceTo(target.pos) <= 1100 and not QKeyHeld then
-                    if Control.KeyDown then Control.KeyDown(HK_Q) end
-                    QKeyHeld = true
-                    QStartTime = Game.Timer()
+            if not myHero.isChanneling and not QKeyHeld then
+                -- Use Vector casting system for Q
+                if myHero.pos:DistanceTo(target.pos) <= 1100 then
+                    local prediction = GetPrediction(target, "Q", 1100)
+                    if prediction and prediction[1] and prediction[2] and prediction[2] >= self.Menu.Combo.QPredictionThreshold:Value() then
+                        local castPos = Vector(prediction[1].x, myHero.pos.y, prediction[1].z)
+                        local endPos = castPos + (castPos - myHero.pos):Normalized() * 100
+                        CastVectorQ(castPos, endPos)
+                    end
                 end
             else
                 if act and act.name == "PykeQ" then
@@ -266,12 +343,15 @@ function L9Pyke:Harass()
         -- Q charge logic - charge until prediction says we can hit
         if self.Menu.Harass.UseQ:Value() and _G.L9Engine:IsSpellReady(_Q) then
             local act = myHero.activeSpell
-            if not myHero.isChanneling then
-                -- Start charging Q if target in range
-                if myHero.pos:DistanceTo(target.pos) <= 1100 and not QKeyHeld then
-                    if Control.KeyDown then Control.KeyDown(HK_Q) end
-                    QKeyHeld = true
-                    QStartTime = Game.Timer()
+            if not myHero.isChanneling and not QKeyHeld then
+                -- Use Vector casting system for Q
+                if myHero.pos:DistanceTo(target.pos) <= 1100 then
+                    local prediction = GetPrediction(target, "Q", 1100)
+                    if prediction and prediction[1] and prediction[2] and prediction[2] >= self.Menu.Combo.QPredictionThreshold:Value() then
+                        local castPos = Vector(prediction[1].x, myHero.pos.y, prediction[1].z)
+                        local endPos = castPos + (castPos - myHero.pos):Normalized() * 100
+                        CastVectorQ(castPos, endPos)
+                    end
                 end
             else
                 if act and act.name == "PykeQ" then
