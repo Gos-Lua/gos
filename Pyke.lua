@@ -20,8 +20,7 @@ DelayAction(function()
 end, 1.0)
 
 local function CheckPredictionSystem()
-    -- More permissive check - only return false if absolutely no prediction system is available
-    if not _G.DepressivePrediction then
+    if not PredictionLoaded or not _G.DepressivePrediction then
         return false
     end
     
@@ -285,8 +284,6 @@ function L9Pyke:Tick()
         QKeyHeld = false
         return 
     end
-    
-    if not CheckPredictionSystem() then return end
     
     -- Vector casting system for Q
     if #vectorCast > 0 then
