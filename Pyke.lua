@@ -109,7 +109,7 @@ local function GetUltDamage()
     return baseDamage + (bonusAD * 0.8)
 end
 
--- Vector casting function for Q (based on Taliyah system)
+-- Vector casting function for Q (based on Taliyah system + Vladimir charging)
 local function CastVectorQ(pos1, pos2)
     if nextVectorCast > Game.Timer() then 
         return 
@@ -134,7 +134,7 @@ local function CastVectorQ(pos1, pos2)
     end
     
     vectorCast[#vectorCast + 1] = function() 
-        Control.KeyDown(HK_Q)  -- Start charging Q
+        Control.KeyDown(HK_Q)  -- Start charging Q (Vladimir style)
         QKeyHeld = true
         QStartTime = Game.Timer()
     end
@@ -170,6 +170,60 @@ local function CastVectorQ(pos1, pos2)
     end		
 end
 
+-- Progressive charging system (Vladimir style)
+local function HandleProgressiveCharging(target)
+    local act = myHero.activeSpell
+    if not myHero.isChanneling then
+        -- Start charging Q if target in range and not already charging
+        local inQRange = target and myHero.pos:DistanceTo(target.pos) <= 1100
+        if _G.L9Engine:IsSpellReady(_Q) and not QKeyHeld and inQRange then
+            if Control.KeyDown then Control.KeyDown(HK_Q) end
+            QKeyHeld = true
+            QStartTime = Game.Timer()
+        elseif QKeyHeld and not inQRange then
+            -- Release early if target moved out of range and we're not channeling yet (safety)
+            if Control.KeyUp then Control.KeyUp(HK_Q) end
+            QKeyHeld = false
+        end
+    else
+        if act and act.name == "PykeQ" then
+            local tnow = Game.Timer()
+            local elapsedSinceEnd = (tnow - (act.castEndTime or tnow))
+            local chargeTime = tnow - QStartTime
+            local range = math.max(math.min(chargeTime, 1.25) * 880, 400)
+            
+            -- Get prediction for current range
+            local prediction = GetPrediction(target, "Q", range)
+            
+            -- Release if prediction says we can hit OR max charge reached
+            local shouldRelease = false
+            
+            -- Good prediction
+            if prediction and prediction[1] and prediction[2] and prediction[2] >= 3 then
+                if myHero.pos:DistanceTo(target.pos) <= range then
+                    shouldRelease = true
+                end
+            end
+            
+            -- Max charge reached
+            if elapsedSinceEnd >= 1.25 then
+                shouldRelease = true
+            end
+            
+            if shouldRelease then
+                if Control.KeyUp and QKeyHeld then Control.KeyUp(HK_Q) end
+                QKeyHeld = false
+            end
+        end
+    end
+    
+    -- Safety: if we somehow hold longer than 3s (failsafe) release anyway
+    if QKeyHeld and (Game.Timer() - QStartTime) > 3.0 then
+        if Control.KeyUp then Control.KeyUp(HK_Q) end
+        QKeyHeld = false
+    end
+end
+
 class "L9Pyke"
 
 function L9Pyke:__init()
@@ -187,6 +241,7 @@ function L9Pyke:LoadMenu()
     self.Menu.Combo:MenuElement({id = "UseQ", name = "[Q] Bone Skewer", value = true})
     self.Menu.Combo:MenuElement({id = "QMaxCharge", name = "Q Max Charge Time (s)", value = 1.25, min = 0.5, max = 2.0, step = 0.1})
     self.Menu.Combo:MenuElement({id = "QPredictionThreshold", name = "Q Prediction Threshold", value = 3, min = 1, max = 5, tooltip = "Lower = more aggressive, Higher = more conservative"})
+    self.Menu.Combo:MenuElement({id = "QChargeMode", name = "Q Charge Mode", drop = {"Vector Cast", "Progressive Charge", "Auto"}, value = 1, tooltip = "Vector = Taliyah style, Progressive = Vladimir style, Auto = Smart choice"})
     self.Menu.Combo:MenuElement({id = "UseE", name = "[E] Phantom Undertow", value = true})
     self.Menu.Combo:MenuElement({id = "UseR", name = "[R] Death From Below", value = true})
     self.Menu.Combo:MenuElement({id = "RCount", name = "Min enemies for R", value = 1, min = 1, max = 5})
@@ -255,39 +310,56 @@ function L9Pyke:Combo()
     if not target then return end
     
     if _G.L9Engine:IsValidEnemy(target) then
-        -- Q charge logic - charge until prediction says we can hit
+        -- Q charge logic - combined Taliyah + Vladimir system
         if self.Menu.Combo.UseQ:Value() and _G.L9Engine:IsSpellReady(_Q) then
-            local act = myHero.activeSpell
-            if not myHero.isChanneling and not QKeyHeld then
-                -- Use Vector casting system for Q
-                if myHero.pos:DistanceTo(target.pos) <= 1100 then
-                    local prediction = GetPrediction(target, "Q", 1100)
-                    if prediction and prediction[1] and prediction[2] and prediction[2] >= self.Menu.Combo.QPredictionThreshold:Value() then
-                        local castPos = Vector(prediction[1].x, myHero.pos.y, prediction[1].z)
-                        local endPos = castPos + (castPos - myHero.pos):Normalized() * 100
-                        CastVectorQ(castPos, endPos)
-                    end
+            local chargeMode = self.Menu.Combo.QChargeMode:Value()
+            
+            -- Auto mode: choose best method based on situation
+            if chargeMode == 3 then -- Auto
+                local distance = myHero.pos:DistanceTo(target.pos)
+                if distance <= 600 then
+                    chargeMode = 2 -- Progressive for close range
+                else
+                    chargeMode = 1 -- Vector for long range
                 end
-            else
-                if act and act.name == "PykeQ" then
-                    local chargeTime = Game.Timer() - QStartTime
-                    local range = math.max(math.min(chargeTime, 1.25) * 880, 400)
-                    local prediction = GetPrediction(target, "Q", range)
-                    
-                    -- Release if prediction says we can hit
-                    if prediction and prediction[1] and prediction[2] and prediction[2] >= self.Menu.Combo.QPredictionThreshold:Value() then
-                        if myHero.pos:DistanceTo(target.pos) <= range then
+            end
+            
+            if chargeMode == 1 then
+                -- Vector Cast Mode (Taliyah style)
+                if not myHero.isChanneling and not QKeyHeld then
+                    if myHero.pos:DistanceTo(target.pos) <= 1100 then
+                        local prediction = GetPrediction(target, "Q", 1100)
+                        if prediction and prediction[1] and prediction[2] and prediction[2] >= self.Menu.Combo.QPredictionThreshold:Value() then
+                            local castPos = Vector(prediction[1].x, myHero.pos.y, prediction[1].z)
+                            local endPos = castPos + (castPos - myHero.pos):Normalized() * 100
+                            CastVectorQ(castPos, endPos)
+                        end
+                    end
+                else
+                    -- Handle ongoing charge
+                    if act and act.name == "PykeQ" then
+                        local chargeTime = Game.Timer() - QStartTime
+                        local range = math.max(math.min(chargeTime, 1.25) * 880, 400)
+                        local prediction = GetPrediction(target, "Q", range)
+                        
+                        -- Release if prediction says we can hit
+                        if prediction and prediction[1] and prediction[2] and prediction[2] >= self.Menu.Combo.QPredictionThreshold:Value() then
+                            if myHero.pos:DistanceTo(target.pos) <= range then
+                                if Control.KeyUp and QKeyHeld then Control.KeyUp(HK_Q) end
+                                QKeyHeld = false
+                            end
+                        end
+                        
+                        -- Safety: release at max charge time
+                        if chargeTime >= self.Menu.Combo.QMaxCharge:Value() then
                             if Control.KeyUp and QKeyHeld then Control.KeyUp(HK_Q) end
                             QKeyHeld = false
                         end
                     end
-                    
-                    -- Safety: release at max charge time
-                    if chargeTime >= self.Menu.Combo.QMaxCharge:Value() then
-                        if Control.KeyUp and QKeyHeld then Control.KeyUp(HK_Q) end
-                        QKeyHeld = false
-                    end
                 end
+            else
+                -- Progressive Charge Mode (Vladimir style)
+                HandleProgressiveCharging(target)
             end
         else
             -- Release Q if menu disabled or spell not ready
@@ -340,39 +412,56 @@ function L9Pyke:Harass()
     if not target then return end
     
     if _G.L9Engine:IsValidEnemy(target) then
-        -- Q charge logic - charge until prediction says we can hit
+        -- Q charge logic - combined Taliyah + Vladimir system
         if self.Menu.Harass.UseQ:Value() and _G.L9Engine:IsSpellReady(_Q) then
-            local act = myHero.activeSpell
-            if not myHero.isChanneling and not QKeyHeld then
-                -- Use Vector casting system for Q
-                if myHero.pos:DistanceTo(target.pos) <= 1100 then
-                    local prediction = GetPrediction(target, "Q", 1100)
-                    if prediction and prediction[1] and prediction[2] and prediction[2] >= self.Menu.Combo.QPredictionThreshold:Value() then
-                        local castPos = Vector(prediction[1].x, myHero.pos.y, prediction[1].z)
-                        local endPos = castPos + (castPos - myHero.pos):Normalized() * 100
-                        CastVectorQ(castPos, endPos)
-                    end
+            local chargeMode = self.Menu.Combo.QChargeMode:Value() -- Use same setting as Combo
+            
+            -- Auto mode: choose best method based on situation
+            if chargeMode == 3 then -- Auto
+                local distance = myHero.pos:DistanceTo(target.pos)
+                if distance <= 600 then
+                    chargeMode = 2 -- Progressive for close range
+                else
+                    chargeMode = 1 -- Vector for long range
                 end
-            else
-                if act and act.name == "PykeQ" then
-                    local chargeTime = Game.Timer() - QStartTime
-                    local range = math.max(math.min(chargeTime, 1.25) * 880, 400)
-                    local prediction = GetPrediction(target, "Q", range)
-                    
-                    -- Release if prediction says we can hit
-                    if prediction and prediction[1] and prediction[2] and prediction[2] >= self.Menu.Combo.QPredictionThreshold:Value() then
-                        if myHero.pos:DistanceTo(target.pos) <= range then
+            end
+            
+            if chargeMode == 1 then
+                -- Vector Cast Mode (Taliyah style)
+                if not myHero.isChanneling and not QKeyHeld then
+                    if myHero.pos:DistanceTo(target.pos) <= 1100 then
+                        local prediction = GetPrediction(target, "Q", 1100)
+                        if prediction and prediction[1] and prediction[2] and prediction[2] >= self.Menu.Combo.QPredictionThreshold:Value() then
+                            local castPos = Vector(prediction[1].x, myHero.pos.y, prediction[1].z)
+                            local endPos = castPos + (castPos - myHero.pos):Normalized() * 100
+                            CastVectorQ(castPos, endPos)
+                        end
+                    end
+                else
+                    -- Handle ongoing charge
+                    if act and act.name == "PykeQ" then
+                        local chargeTime = Game.Timer() - QStartTime
+                        local range = math.max(math.min(chargeTime, 1.25) * 880, 400)
+                        local prediction = GetPrediction(target, "Q", range)
+                        
+                        -- Release if prediction says we can hit
+                        if prediction and prediction[1] and prediction[2] and prediction[2] >= self.Menu.Combo.QPredictionThreshold:Value() then
+                            if myHero.pos:DistanceTo(target.pos) <= range then
+                                if Control.KeyUp and QKeyHeld then Control.KeyUp(HK_Q) end
+                                QKeyHeld = false
+                            end
+                        end
+                        
+                        -- Safety: release at max charge time
+                        if chargeTime >= self.Menu.Combo.QMaxCharge:Value() then
                             if Control.KeyUp and QKeyHeld then Control.KeyUp(HK_Q) end
                             QKeyHeld = false
                         end
                     end
-                    
-                    -- Safety: release at max charge time
-                    if chargeTime >= self.Menu.Combo.QMaxCharge:Value() then
-                        if Control.KeyUp and QKeyHeld then Control.KeyUp(HK_Q) end
-                        QKeyHeld = false
-                    end
                 end
+            else
+                -- Progressive Charge Mode (Vladimir style)
+                HandleProgressiveCharging(target)
             end
         else
             -- Release Q if menu disabled or spell not ready
