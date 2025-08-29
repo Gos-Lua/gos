@@ -85,6 +85,33 @@ local function GetPrediction(target, spell)
     return {x = target.pos.x, z = target.pos.z}, 2
 end
 
+-- Fonction pour calculer les dégâts des sorts
+local function getdmg(spell, target, source)
+    if not target or not source then return 0 end
+    
+    if spell == "Q" then
+        local level = source:GetSpellData(_Q).level
+        if level == 0 then return 0 end
+        local baseDmg = 60 + (level - 1) * 40
+        local apRatio = 0.6
+        return baseDmg + (source.ap * apRatio)
+    elseif spell == "W" then
+        local level = source:GetSpellData(_W).level
+        if level == 0 then return 0 end
+        local baseDmg = 65 + (level - 1) * 35
+        local apRatio = 0.85
+        return baseDmg + (source.ap * apRatio)
+    elseif spell == "E" then
+        local level = source:GetSpellData(_E).level
+        if level == 0 then return 0 end
+        local baseDmg = 70 + (level - 1) * 30
+        local apRatio = 0.7
+        return baseDmg + (source.ap * apRatio)
+    end
+    
+    return 0
+end
+
 class "L9Sylas"
 
 function L9Sylas:__init()
